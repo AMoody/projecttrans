@@ -1,6 +1,6 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * jProjectTranslator is used to translate audio editing projects from one format to another.
+ * Internally
  */
 
 package jprojecttranslator;
