@@ -1,0 +1,59 @@
+    //CONVERT A FRAME NUMBER TO DROP FRAME TIMECODE
+    //Code by David Heidelberger, adapted from Andrew Duncan
+    //Given an int called framenumber and a double called framerate
+    //Framerate should be 29.97, 59.94, or 23.976, otherwise the calculations will be off.
+     
+    int d;
+    int m;
+     
+    int dropFrames = round(framerate * .066666); //Number of frames to drop on the minute marks is the nearest integer to 6% of the framerate
+    int framesPerHour = round(framerate*60*60); //Number of frames in an hour
+    int framesPer24Hours = framesPerHour*24; //Number of frames in a day - timecode rolls over after 24 hours
+    int framesPer10Minutes = round(framerate * 60 * 10); //Number of frames per ten minutes
+    int framesPerMinute = round(framerate)*60)-  dropFrames; //Number of frames per minute is the round of the framerate * 60 minus the number of dropped frames
+     
+    if (framenumber<0) //Negative time. Add 24 hours.
+    {
+        framenumber=framesPer24Hours+framenumber;
+    }
+     
+    //If framenumber is greater than 24 hrs, next operation will rollover clock
+    framenumber = framenumber % framesPer24Hours; //% is the modulus operator, which returns a remainder. a % b = the remainder of a/b
+     
+    d = framenumber\framesPer10Minutes; // \ means integer division, which is a/b without a remainder. Some languages you could use floor(a/b)
+    m = framenumber % framesPer10Minutes
+     
+    //In the original post, the next line read m>1, which only worked for 29.97. Jean-Baptiste Mardelle correctly pointed out that m should be compared to dropFrames.
+    if (m>dropFrames)
+    {
+        framenumber=framenumber + (dropFrames*9*d) + dropFrames*((m-dropFrames)\framesPerMinute);
+    }
+    else
+    {
+        framenumber = framenumber + dropFrames*9*d;
+    }
+     
+    int frRound = round(framerate);
+    int frames = framenumber % frRound;
+    int seconds = (framenumber \ frRound) % 60;
+    int minutes = ((framenumber \ frRound) \ 60) % 60;
+    int hours = (((framenumber \ frRound) \ 60) \ 60);
+
+ 
+And here’s the code to convert drop frame timecode to a frame number:
+
+ 
+
+    //CONVERT DROP FRAME TIMECODE TO A FRAME NUMBER
+    //Code by David Heidelberger, adapted from Andrew Duncan
+    //Given ints called hours, minutes, seconds, frames, and a double called framerate
+     
+    int dropFrames = round(framerate*.066666); //Number of drop frames is 6% of framerate rounded to nearest integer
+    int timeBase = round(framerate); //We don’t need the exact framerate anymore, we just need it rounded to nearest integer
+     
+    int hourFrames = timeBase*60*60; //Number of frames per hour (non-drop)
+    int minuteFrames = timebase*60; //Number of frames per minute (non-drop)
+    int totalMinutes = (60*hours) + minutes; //Total number of minuts
+    int frameNumber = ((hourFrames * hours) + (minuteFrames * minutes) + (timeBase * seconds) + frames) - (dropFrames * (totalMinutes - (totalMinutes \ 10)));
+    return frameNumber;
+
