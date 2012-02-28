@@ -39,7 +39,10 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         * Next step is to create an ADL file and write the output.
         */
         writeADLFile(fDestFile, st);
+        oProjectTranslator.messagePanel.writeString("ADL file written");
         writeAudioFiles ();
+        oProjectTranslator.messagePanel.writeString("Finished");
+        System.out.println("AES31 writer thread finished");
         return true;
     }
     /* This method fills in the URI column in the SOURCE_INDEX table
@@ -311,7 +314,11 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                      continue;
                  }
                  System.out.println("Starting audio file write on dest file " + strURI);
+                 oProjectTranslator.messagePanel.writeString("Writing audio file " + strURI);
+        
+                 tempBWFProcessor.addObserver(this);
                  tempBWFProcessor.writeFile(fDestFile);
+                 tempBWFProcessor.deleteObserver(this);
              }
              
 //             strSQL = "SELECT intIndex, strURI FROM PUBLIC.SOURCE_INDEX ;";
