@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Observable;
+import java.util.Observer;
 import java.util.Vector;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.joda.time.format.DateTimeFormat;
@@ -18,7 +19,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * @author arth
  */
-public class jProjectWriter extends Observable {
+public class jProjectWriter extends Observable implements Observer{
     protected boolean bRunning = false;
     protected database ourDatabase;
     protected List lBWFProcessors;
@@ -29,13 +30,28 @@ public class jProjectWriter extends Observable {
     protected File fDestFile;
     protected File fDestFolder;
     public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
-    
+    // This is a holder for the main class so we can access it's methods
+    protected jProjectTranslator oProjectTranslator;
     
     /* This is used to test to see if the object is still running
      * 
      */
     public boolean getRunning() {
         return bRunning;
+    } 
+    /* This method receives updates from objects which are observed such as the BWFProcessor
+     * 
+     */
+    public void update(Observable o, Object arg) {
+        // One of the observed objects has changed
+        if (o instanceof BWFProcessor) {
+            // Simply pass this on to the jProjectTranslator
+//            System.out.println("Project Writer notified of bytes written " + ((BWFProcessor)o).getLByteWriteCounter());
+            setChanged();
+            notifyObservers(o);
+            
+        }
+
     }    
     /*
      * This returns a FileFilter which this class can read
@@ -47,8 +63,8 @@ public class jProjectWriter extends Observable {
     /*
      * This asks the object to save a project
      */
-    public boolean save (database setDatabase, List setBWFProcessors, File setDestFile) {
-        
+    public boolean save (database setDatabase, List setBWFProcessors, File setDestFile, jProjectTranslator setParent) {
+        oProjectTranslator = setParent;
         ourDatabase = setDatabase;
         try {
             conn = ourDatabase.getConnection();

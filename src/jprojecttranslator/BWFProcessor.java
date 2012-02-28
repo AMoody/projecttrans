@@ -13,7 +13,9 @@ import java.io.*;
 import java.util.*;
 import java.nio.*;
 import java.nio.channels.FileChannel;
-public class BWFProcessor implements Runnable {
+import java.util.Observable;
+
+public class BWFProcessor extends Observable implements Runnable {
     private long lSourceFileStart = 0;
     private long lSourceFileEnd = 0;
     // This sets a flag to show that we're reading a miltipart files where wave files are concatenated
@@ -58,7 +60,8 @@ public class BWFProcessor implements Runnable {
     private long dataChunkOffset;
     // Create the thread, we won't start it yet.
     private Thread ourThread; 
-    private long bytesWritten;
+    private long lBytePointer;
+    private long lByteWriteCounter = 0;
     private long lastActivity;
     private String tempDestName, tempSourceName;
     private File tempDestFile, tempSourceFile;
@@ -68,6 +71,11 @@ public class BWFProcessor implements Runnable {
     private boolean readOnly = false;
     private boolean bDebug = true;
     private Iterator chunkIterator;
+    /* This string stores the originator reference, 
+     * when the write process is started the bext chunk is deleted
+     * but we might still need this string so we save it here
+     */
+    private String strOriginatorReference = "";
     
     
     
@@ -195,7 +203,7 @@ public class BWFProcessor implements Runnable {
         while (ourProcessor.isAlive()) {
             try {
                 Thread.sleep(1500); // Sleep for 1.5s
-                System.out.println("Bytes written so far " + ourProcessor.getBytesWritten()); 
+                System.out.println("Bytes written so far " + ourProcessor.getLBytePointer()); 
             } catch (InterruptedException e) {
                 System.out.println("Sleep interrupted." );            
             }
@@ -220,9 +228,12 @@ public class BWFProcessor implements Runnable {
         return ourThread.isAlive();
     }
     
-    public long getBytesWritten(){
-        return bytesWritten;
+    public long getLBytePointer(){
+        return lBytePointer;
     }
+    public long getLByteWriteCounter() {
+        return lByteWriteCounter;
+    }    
 
     public long getIndicatedFileSize() {
         return indicatedFileSize;
@@ -462,6 +473,7 @@ public class BWFProcessor implements Runnable {
     }
 
     private void writeFile(){
+        lByteWriteCounter = 0;
         // First update the first 12 bytes of the ByteBuffer sourceBytes with the new file size
         // So we need to calculate the new file size.        
         calculatedFileSize = dataChunkSize + 8 + 4;
@@ -488,6 +500,7 @@ public class BWFProcessor implements Runnable {
         sourceBytes.position(0);
         try {
             outChannel.write(sourceBytes);
+            lByteWriteCounter = lByteWriteCounter + 12;
             // Thats the first 12 bytes written, now we need to add the bext chunk
             chunkIterator = startChunks.iterator();  
             while (chunkIterator.hasNext()){
@@ -496,19 +509,23 @@ public class BWFProcessor implements Runnable {
                   if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
                       // Yes we have found the bext chunk, this needs to go at the start of the file
                       outChannel.write(tempChunk.getBytes());
+                      lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE();
                       // Now remove it from the Vector so it does not get added again
                       startChunks.remove(tempChunk);
+                      bHasBextChunk = false;
                       break;
                   }
             }            
             // Now write the data from the other start chunks
             chunkIterator = startChunks.iterator();
             while (chunkIterator.hasNext()){
-                outChannel.write(  ((chunk)chunkIterator.next()).getBytes()  );
+                tempChunk = (chunk)chunkIterator.next();
+                outChannel.write(tempChunk.getBytes());
+                lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE();
             }
             // The start chunks are written, now we need to add the remainder of the source file starting from the data chunk.
             inChannel.position(dataChunkOffset);
-            bytesWritten = dataChunkOffset;
+            lBytePointer = dataChunkOffset;
             long lEndByte;
             if (bMultipart) {
 //                lEndByte = calculatedFileSize + 12 + lSourceFileStart;
@@ -517,8 +534,8 @@ public class BWFProcessor implements Runnable {
                 lEndByte = inChannel.size();
             }
             System.out.println("Calculated file size is " + calculatedFileSize + " data chunk offset is " + dataChunkOffset);
-            System.out.println("Writing output file starting at " + bytesWritten + " offset on input file and finishing at  " + lEndByte + " offset on input file.");
-            while (bytesWritten<lEndByte) {
+            System.out.println("Writing output file starting at " + lBytePointer + " offset on input file and finishing at  " + lEndByte + " offset on input file.");
+            while (lBytePointer<lEndByte) {
                 
                 try {
                     Thread.sleep(Main.randomNumber.nextInt(200) + 500 +(lEndByte/600000)); // Sleep for about 0.6 plus 1s per 600M file size
@@ -528,16 +545,19 @@ public class BWFProcessor implements Runnable {
                 synchronized(Main.randomNumber) {
                     // There is only one of those objects so this code can only be excecuted by one thread at a time.
 
-                    if (lEndByte-bytesWritten<5000000) {
-                        bytesWritten += inChannel.transferTo(
-                            bytesWritten,
-                            lEndByte-bytesWritten,
-                            outChannel);                    
+                    if (lEndByte-lBytePointer<5000000) {
+                        lByteWriteCounter = lByteWriteCounter + lEndByte-lBytePointer;
+                        lBytePointer += inChannel.transferTo(
+                            lBytePointer,
+                            lEndByte-lBytePointer,
+                            outChannel); 
+                        
                     } else {
-                        bytesWritten += inChannel.transferTo(
-                            bytesWritten,
+                        lBytePointer += inChannel.transferTo(
+                            lBytePointer,
                             5000000, 
-                            outChannel);                    
+                            outChannel);
+                        lByteWriteCounter = lByteWriteCounter + 5000000;
                     }
 
                     lastActivity = System.currentTimeMillis()/1000;                    
@@ -545,7 +565,8 @@ public class BWFProcessor implements Runnable {
                 }
 
                 // No matter how large the file being copied the thread should pass this point regularly.
-                
+                setChanged();
+                notifyObservers();
                
                 // Good place for a yield or WDT?
             }
@@ -714,7 +735,7 @@ public class BWFProcessor implements Runnable {
     }
     public String getBextOriginatorRef() {
         if (!hasBextChunk()) {
-            return "";
+            return strOriginatorReference;
         }
         chunkIterator = startChunks.iterator();
         chunk tempChunk;
@@ -734,13 +755,14 @@ public class BWFProcessor implements Runnable {
                           strTemp.append((char)tempByte);
                       }
                   }
+                  strOriginatorReference = strTemp.toString();
                   return strTemp.toString();
             }
         }
         return "";
         
     }
-    public boolean setBextOriginatorRef(String setTitle) {
+    public boolean setBextOriginatorRef(String setOriginatorReference) {
         chunk tempChunk = null;
         if (!hasBextChunk()) {
             tempChunk = createBextChunk();
@@ -755,17 +777,17 @@ public class BWFProcessor implements Runnable {
                 }
             }
         }
-        if (setTitle.length() > 32) {
-            setTitle = setTitle.substring(0, 32);
+        if (setOriginatorReference.length() > 32) {
+            setOriginatorReference = setOriginatorReference.substring(0, 32);
         }
         ByteBuffer byteData = ByteBuffer.allocate(32);
-        byteData.put(setTitle.getBytes());
+        byteData.put(setOriginatorReference.getBytes());
         byte nullByte = 0;
         while (byteData.hasRemaining()) {
             byteData.put(nullByte);
         }
         byteData.position(0);
-
+        strOriginatorReference = setOriginatorReference;
         if (tempChunk instanceof chunk) {
             return tempChunk.setBytes(byteData, 288);
         } else {
