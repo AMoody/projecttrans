@@ -27,9 +27,12 @@ public class jProjectReader extends Observable {
     protected Statement st;
     protected Connection conn;
     protected BWFProcessor tempBWFProc;
-    protected int intSoundFiles = 0;
+    protected int intSoundFilesLoaded = 0;
     protected static int intClipCounter = 1;
-    
+    protected int intSourceFileCount = 0;
+    // This is a holder for the main class so we can access it's methods
+    protected jProjectTranslator oProjectTranslator;
+        
 
     
     /* This is used to test to see if the file has been loaded successfully
@@ -44,6 +47,17 @@ public class jProjectReader extends Observable {
     public boolean getRunning() {
         return bRunning;
     }
+    /* This gives a percentage of progress which is used to update the progress bar
+     * 
+     */
+    public int getPercentProgress() {
+        if (intSoundFilesLoaded < intSourceFileCount && intSourceFileCount > 0) {
+            return 100*intSoundFilesLoaded/intSourceFileCount;
+
+        } else {
+            return 100;
+        }
+    }
     /*
      * This returns a FileFilter which this class can read
      */
@@ -54,7 +68,8 @@ public class jProjectReader extends Observable {
     /*
      * This asks the object to load a project
      */
-    public boolean load (database setDatabase, List setBWFProcessors, File setSourceFile) {
+    public boolean load (database setDatabase, List setBWFProcessors, File setSourceFile, jProjectTranslator setParent) {
+        oProjectTranslator = setParent;
         ourDatabase = setDatabase;
         try {
             conn = ourDatabase.getConnection();

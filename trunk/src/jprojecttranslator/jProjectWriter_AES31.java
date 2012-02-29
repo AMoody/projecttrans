@@ -39,9 +39,9 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         * Next step is to create an ADL file and write the output.
         */
         writeADLFile(fDestFile, st);
-        oProjectTranslator.messagePanel.writeString("ADL file written");
+        oProjectTranslator.writeStringToPanel("ADL file written");
         writeAudioFiles ();
-        oProjectTranslator.messagePanel.writeString("Finished");
+        oProjectTranslator.writeStringToPanel("Finished");
         System.out.println("AES31 writer thread finished");
         return true;
     }
@@ -51,7 +51,11 @@ public class jProjectWriter_AES31 extends jProjectWriter {
     protected boolean writeURIs () {
         String strURI = fDestFolder.toString();
         strURI = strURI.replaceAll("\\\\", "/");
-        strURI = "URL:file://localhost/" + strURI;
+        if (strURI.startsWith("/")) {
+            strURI = "URL:file://localhost" + strURI;
+        } else {
+            strURI = "URL:file://localhost/" + strURI;
+        }
         int intSourceIndex;
         String strName;
         int i;
@@ -62,7 +66,11 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             while (rs.next()) {
                 intSourceIndex = rs.getInt(1);
                 strName = URLDecoder.decode(rs.getString(2), "UTF-8");
-                strName = strURI + "/" + strName;
+                if (strURI.endsWith("/")) {
+                    strName = strURI + strName;
+                } else {
+                    strName = strURI + "/" + strName;
+                }
                 strName = URLEncoder.encode(strName, "UTF-8");
                 strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strURI = \'" + strName + "\' WHERE intIndex = " + intSourceIndex + ";";
                 i = st.executeUpdate(strSQL);
@@ -112,7 +120,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             }
             // Fill in the SEQUENCE tags
             strADLText = strADLText + str4Space + "<SEQUENCE>\n";
-            strADLText = strADLText + str8Space + "(SEQ_SAMPLE_RATE)  S" + jProjectTranslator.intSampleRate + "\n";
+            strADLText = strADLText + str8Space + "(SEQ_SAMPLE_RATE)  S" + jProjectTranslator.intSampleRate +  "\n";
             String strFrameRate;
             if (jProjectTranslator.dFrameRate%5 == 0) {
                 strFrameRate = "" + (java.lang.Math.round(jProjectTranslator.dFrameRate));
@@ -308,13 +316,21 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                  rs = st.executeQuery(strSQL);
                  rs.next();
                  strURI = URLDecoder.decode(rs.getString(1), "UTF-8");
-                 strURI = strURI.substring(21, strURI.length());
+                 strURI = strURI.substring(20, strURI.length());
                  fDestFile = new File(strURI);
                  if (fDestFile.exists()) {
-                     continue;
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = intIndicatedFileSize WHERE strUMID = \'" + strUMID + "\';";
+                    //                    System.out.println("SQL " + strSQL);
+                    int i = st.executeUpdate(strSQL);
+                    if (i == -1) {
+                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    }
+                    setChanged();
+                    notifyObservers();
+                    continue;
                  }
                  System.out.println("Starting audio file write on dest file " + strURI);
-                 oProjectTranslator.messagePanel.writeString("Writing audio file " + strURI);
+                 oProjectTranslator.writeStringToPanel("Writing audio file " + strURI);
         
                  tempBWFProcessor.addObserver(this);
                  tempBWFProcessor.writeFile(fDestFile);
