@@ -32,6 +32,7 @@ import org.joda.time.*;
 import org.joda.time.format.*;
 import java.lang.Math.*;
 import javax.swing.JOptionPane;
+import javax.swing.table.AbstractTableModel;
 /**
  *
  * @author arth
@@ -55,31 +56,73 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     /* This stores the last used folder. */
     private static File fPath;
     // This is the message panel which is used to display information and ask questions
-    public jMessagePanel messagePanel;
-    
+//    public jMessagePanel messagePanel;
+    public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+    public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd\\MM\\yyyy HH:mm:ss");
+    // This sets the number of messages displayed
+    private int intMessageQueueLength = 3;
+    // This stores the last intMessageQueueLength messages
+    private List listRecentActivityStrings = new ArrayList(intMessageQueueLength);
+    private soundFilesTableModel ourTableModel = new soundFilesTableModel();
     /**
      * Creates new form jProjectTranslator
      */
     public jProjectTranslator() {
         initComponents();
-        messagePanel = new jMessagePanel(this);
-        jPanel1.add(messagePanel);
-        
+        jTable1.setModel(ourTableModel);
     }
+    public void writeStringToPanel(String setString) {
+        listRecentActivityStrings.add(setString);
+        if (listRecentActivityStrings.size() > intMessageQueueLength) {
+            listRecentActivityStrings.remove(0);
+        }
+        jTextArea1.setText(getActivityString());
+    }
+    /** This returns a string which contains the recent activity. Each line is terminated
+    * in a new line character.*/
+    public String getActivityString(){
+        Iterator itStrings = listRecentActivityStrings.iterator();
+        String tempString = "";
+        while (itStrings.hasNext()) {
+            tempString = tempString + (String)itStrings.next() + "\n";
+        }
+        return tempString;
+    }    
     public void update(Observable o, Object arg) {
 //        System.out.println("jProjectTranslator notified of change o " + o.getClass().toString() + " arg " + arg.getClass().toString());
         // One of the observed objects has changed
         String strSQL = "";
         if (o instanceof jProjectReader) {
+            int intPercentProgress = ((jProjectReader)o).getPercentProgress();
             
+            try {
+                Connection conn = ourDatabase.getConnection();
+                Statement st = conn.createStatement();
+                strSQL = "SELECT strTitle, dtsCreated FROM PUBLIC.PROJECT;";
+                st = conn.createStatement();
+                ResultSet rs = st.executeQuery(strSQL);
+                rs.next();
+                String strTitle = URLDecoder.decode(rs.getString(1), "UTF-8");
+                DateTime dtCreated = fmtSQL.parseDateTime(rs.getString(2).substring(0, 19)).withZone(DateTimeZone.UTC);
+                String strCreated  = fmtDisplay.print(dtCreated);
+                jTextField1.setText(strTitle);
+                jTextField2.setText(strCreated);
+
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+            } catch (java.io.UnsupportedEncodingException e) {
+                System.out.println("Error on decoding at " + strSQL + e.toString());
+            }
+            
+            jProgressBar1.setValue(intPercentProgress);
+            // ourTableModel.updateData(ourDatabase);
         }
         if (o instanceof jProjectWriter) {
-            if (arg instanceof BWFProcessor) {
-                // A file is being written, update the progress bar
-                
-                try {
-                    Connection conn = ourDatabase.getConnection();
-                    Statement st = conn.createStatement();
+            try {
+                Connection conn = ourDatabase.getConnection();
+                Statement st = conn.createStatement();
+                if (arg instanceof BWFProcessor) {
+                    // A file is being written, update the progress bar
                     BWFProcessor tempBWFProcessor = (BWFProcessor)arg;
                     String strUMID = URLEncoder.encode(tempBWFProcessor.getBextOriginatorRef(), "UTF-8");
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = " + tempBWFProcessor.getLByteWriteCounter() +  " WHERE strUMID = \'" + strUMID + "\';";
@@ -88,31 +131,34 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                     if (i == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                     }
-                    strSQL = "SELECT SUM(intCopied), SUM(intIndicatedFileSize) FROM PUBLIC.SOURCE_INDEX;";
-                    st = conn.createStatement();
-                    ResultSet rs = st.executeQuery(strSQL);
-                    rs.next();
-                    long lPercent, lCopied, lIndicated;
-                    lCopied = rs.getLong(1);
-                    lIndicated = rs.getLong(2);
-                    if (lCopied < lIndicated && lIndicated > 0) {
-                        lPercent =  100*lCopied/lIndicated;
-                        
-                    } else {
-                        lPercent =  100;
-                    }
-                    jProgressBar1.setValue((int)lPercent);
-                    System.out.println("Bytes written " + lCopied + " from a total target of " + lIndicated + " " + lPercent + " %");
-                } catch (java.sql.SQLException e) {
-                    System.out.println("Error on SQL " + strSQL + e.toString());
                     
-                } catch (java.io.UnsupportedEncodingException e) {
-                    System.out.println("Error on decoding at " + strSQL + e.toString());
-                    
-                } 
-                
+
+                }
+                // Update the display
+                strSQL = "SELECT SUM(intCopied), SUM(intIndicatedFileSize) FROM PUBLIC.SOURCE_INDEX;";
+                st = conn.createStatement();
+                ResultSet rs = st.executeQuery(strSQL);
+                rs.next();
+                long lPercent, lCopied, lIndicated;
+                lCopied = rs.getLong(1);
+                lIndicated = rs.getLong(2);
+                if (lCopied < lIndicated && lIndicated > 0) {
+                    lPercent =  100*lCopied/lIndicated;
+
+                } else {
+                    lPercent =  100;
+                }
+                jProgressBar1.setValue((int)lPercent);
+                // ourTableModel.updateData(ourDatabase);
+                System.out.println("Bytes written " + lCopied + " from a total target of " + lIndicated + " " + lPercent + " %");
+
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+
+            } catch (java.io.UnsupportedEncodingException e) {
+                System.out.println("Error on decoding at " + strSQL + e.toString());
+
             }
-            
         }
     }
     /**
@@ -133,7 +179,11 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jTextField1 = new javax.swing.JTextField();
         jTextField2 = new javax.swing.JTextField();
         jProgressBar1 = new javax.swing.JProgressBar();
-        jPanel1 = new javax.swing.JPanel();
+        jPanel2 = new javax.swing.JPanel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jTextArea1 = new javax.swing.JTextArea();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        jTable1 = new javax.swing.JTable();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenuItem1 = new javax.swing.JMenuItem();
@@ -194,18 +244,63 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
         jProgressBar1.setStringPainted(true);
 
-        jPanel1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
-        jPanel1.setPreferredSize(new java.awt.Dimension(100, 100));
+        jPanel2.setPreferredSize(new java.awt.Dimension(600, 223));
 
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+
+        jTextArea1.setColumns(20);
+        jTextArea1.setRows(5);
+        jScrollPane1.setViewportView(jTextArea1);
+
+        jTable1.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Name", "Source file", "Status", "Size"
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        jScrollPane2.setViewportView(jTable1);
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGap(0, 0, Short.MAX_VALUE)
+            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel2Layout.createSequentialGroup()
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 913, Short.MAX_VALUE)
+                    .addContainerGap()))
+            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel2Layout.createSequentialGroup()
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 913, Short.MAX_VALUE)
+                    .addContainerGap()))
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 98, Short.MAX_VALUE)
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 230, Short.MAX_VALUE)
+            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel2Layout.createSequentialGroup()
+                    .addGap(14, 14, 14)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addContainerGap(138, Short.MAX_VALUE)))
+            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel2Layout.createSequentialGroup()
+                    .addGap(92, 92, 92)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 126, Short.MAX_VALUE)
+                    .addContainerGap()))
         );
 
         jMenu1.setText("File");
@@ -256,21 +351,26 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jToolBar1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jProgressBar1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel1)
-                            .addComponent(jLabel2))
-                        .addGap(56, 56, 56)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 381, Short.MAX_VALUE))
+                            .addComponent(jToolBar1, javax.swing.GroupLayout.PREFERRED_SIZE, 607, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(layout.createSequentialGroup()
+                                .addContainerGap()
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                            .addComponent(jLabel1)
+                                            .addComponent(jLabel2))
+                                        .addGap(56, 56, 56)
+                                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addGap(193, 193, 193)
+                                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 402, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                        .addGap(0, 330, Short.MAX_VALUE))
+                    .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 937, Short.MAX_VALUE)
+                    .addComponent(jProgressBar1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -288,8 +388,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jProgressBar1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 32, Short.MAX_VALUE))
+                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, 230, Short.MAX_VALUE))
         );
 
         pack();
@@ -334,7 +433,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             tempProjectReader = (jProjectReader)(itr.next());
             if (fc.getFileFilter().getDescription().equalsIgnoreCase(tempProjectReader.getFileFilter().getDescription())) {
                 System.out.println("A suitable file reader was found");
-                tempProjectReader.load(ourDatabase, listBWFProcessors, fc.getSelectedFile());
+                tempProjectReader.addObserver(this);
+                tempProjectReader.load(ourDatabase, listBWFProcessors, fc.getSelectedFile(),this);
             }
         }
     }//GEN-LAST:event_menuOpen
@@ -486,6 +586,94 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             }
         });
     }
+    public void updateTable() {
+        ourTableModel.updateData(ourDatabase);
+    }
+    class soundFilesTableModel extends AbstractTableModel {
+        final String[] columnNames = new String [] {"Name" , "Source file" , "Status", "Size"};
+        Object[][] data = new Object [][] { };
+        protected database ourDatabase;
+        protected String strSQL;
+        protected Statement st;
+        protected Connection conn;
+        protected ResultSet rs;
+        // Vector vRows = new Vector(4);
+        @Override
+        public int getColumnCount() {
+            return columnNames.length;
+        }
+        @Override
+        public int getRowCount() {
+            return data.length;
+        }
+        @Override
+        public String getColumnName(int col) {
+            return columnNames[col];
+        }
+        @Override
+        public Object getValueAt(int row, int col) {
+            return data[row][col];
+            //return (vRows.get(row)).get(col);
+            // return ((Vector)vRows.get(row)).get(col);
+        }
+        @Override
+        public Class getColumnClass(int c) {
+            return getValueAt(0, c).getClass();
+        }
+        /*
+        * This method controls updates to the table data 
+        */
+        @Override
+        public void setValueAt(Object value, int row, int col) {
+
+        }
+        /*
+        *This method allows us to add a row with the eight objects supplied
+        */
+        @Override
+        public boolean isCellEditable(int row, int col) {
+            return false;
+        }
+        public boolean updateData(database setDatabase) {
+            ourDatabase = setDatabase;
+            int row = 0;
+            try {
+                conn = ourDatabase.getConnection();
+                st = conn.createStatement();
+                strSQL = "SELECT COUNT(*) FROM PUBLIC.SOURCE_INDEX ;";
+                rs = st.executeQuery(strSQL);
+                rs.next();
+                data = new Object [rs.getInt(1)][4];
+                long lDuration;
+                if (rs.getInt(1) > 0){
+                    strSQL = "SELECT strName, strSourceFile, intIndicatedFileSize FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+                    rs = st.executeQuery(strSQL);
+                    while (rs.next()) {
+                        data[row][0] = URLDecoder.decode(rs.getString(1), "UTF-8");
+                        data[row][1] = URLDecoder.decode(rs.getString(2), "UTF-8");
+                        lDuration = rs.getLong(3);
+                        if (lDuration > 0) {
+                            data[row][2] = "Found";
+                        } else  {
+                            data[row][2] = "Not found";
+                        }
+                        data[row][3] = "" + rs.getLong(3);
+                        row++;
+                    }
+                    
+                } 
+                fireTableChanged(null);
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + e.toString());
+                return false;
+            } catch (java.io.UnsupportedEncodingException e) {
+                System.out.println("Error on URL decode " + e.toString());
+            }
+            
+            return true;
+        }
+
+    }    
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
@@ -499,8 +687,12 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     private javax.swing.JMenuItem jMenuItem2;
     private javax.swing.JMenuItem jMenuItem3;
     private javax.swing.JMenuItem jMenuItem4;
-    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
     private javax.swing.JProgressBar jProgressBar1;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JTable jTable1;
+    private javax.swing.JTextArea jTextArea1;
     private javax.swing.JTextField jTextField1;
     private javax.swing.JTextField jTextField2;
     private javax.swing.JToolBar jToolBar1;

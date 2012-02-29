@@ -34,12 +34,13 @@ public class jMessagePanel extends javax.swing.JPanel {
     /** This is used to parse the time for the activity display.*/
     private static SimpleDateFormat fmtTimeFormat = new SimpleDateFormat("HH:mm:ss");     
     // This is a holder for the main class so we can access it's methods
-    protected jProjectTranslator oProjectTranslator;
+//    protected jProjectTranslator oProjectTranslator;
     
     /** Creates new form jMessagePanel */
-    public jMessagePanel(jProjectTranslator setMain) {
-        oProjectTranslator = setMain;
+    public jMessagePanel() {
+//        oProjectTranslator = setMain;
         initComponents();
+        
     }
     /** This allows the application to write a line to the display. 
      * It is prepended by a date time stamp automatically.
