@@ -58,7 +58,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     // This is the message panel which is used to display information and ask questions
 //    public jMessagePanel messagePanel;
     public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
-    public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd\\MM\\yyyy HH:mm:ss");
+    public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss");
     // This sets the number of messages displayed
     private int intMessageQueueLength = 3;
     // This stores the last intMessageQueueLength messages
@@ -280,13 +280,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGap(0, 0, Short.MAX_VALUE)
             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addGroup(jPanel2Layout.createSequentialGroup()
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 913, Short.MAX_VALUE)
-                    .addContainerGap()))
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 937, Short.MAX_VALUE))
             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addGroup(jPanel2Layout.createSequentialGroup()
-                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 913, Short.MAX_VALUE)
-                    .addContainerGap()))
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 937, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -295,7 +291,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 .addGroup(jPanel2Layout.createSequentialGroup()
                     .addGap(14, 14, 14)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addContainerGap(138, Short.MAX_VALUE)))
+                    .addContainerGap(145, Short.MAX_VALUE)))
             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addGroup(jPanel2Layout.createSequentialGroup()
                     .addGap(92, 92, 92)
@@ -359,15 +355,12 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                             .addGroup(layout.createSequentialGroup()
                                 .addContainerGap()
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                            .addComponent(jLabel1)
-                                            .addComponent(jLabel2))
-                                        .addGap(56, 56, 56)
-                                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGap(193, 193, 193)
-                                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 402, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                                    .addComponent(jLabel1)
+                                    .addComponent(jLabel2))
+                                .addGap(56, 56, 56)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 402, javax.swing.GroupLayout.PREFERRED_SIZE))))
                         .addGap(0, 330, Short.MAX_VALUE))
                     .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 937, Short.MAX_VALUE)
                     .addComponent(jProgressBar1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
@@ -564,7 +557,10 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
          * Add the available project readers and writers here so we can filter the source and dest file types
          */
         listReaders.add(new jProjectReader_VCS());
+        // listReaders.add(new jProjectReader_ARDOUR());
+        // listReaders.add(new jProjectReader_AES31());
         listWriters.add(new jProjectWriter_AES31());
+        // listWriters.add(new jProjectWriter_ARDOUR());
       
         
         /*
@@ -590,7 +586,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         ourTableModel.updateData(ourDatabase);
     }
     class soundFilesTableModel extends AbstractTableModel {
-        final String[] columnNames = new String [] {"Name" , "Source file" , "Status", "Size"};
+        final String[] columnNames = new String [] {"Name" , "Source file" , "Status", "Size", "Sample rate"};
         Object[][] data = new Object [][] { };
         protected database ourDatabase;
         protected String strSQL;
@@ -643,10 +639,10 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 strSQL = "SELECT COUNT(*) FROM PUBLIC.SOURCE_INDEX ;";
                 rs = st.executeQuery(strSQL);
                 rs.next();
-                data = new Object [rs.getInt(1)][4];
-                long lDuration;
+                data = new Object [rs.getInt(1)][5];
+                long lDuration, lSampleRate;
                 if (rs.getInt(1) > 0){
-                    strSQL = "SELECT strName, strSourceFile, intIndicatedFileSize FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+                    strSQL = "SELECT strName, strSourceFile, intIndicatedFileSize, intSampleRate FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
                     rs = st.executeQuery(strSQL);
                     while (rs.next()) {
                         data[row][0] = URLDecoder.decode(rs.getString(1), "UTF-8");
@@ -658,6 +654,16 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                             data[row][2] = "Not found";
                         }
                         data[row][3] = "" + rs.getLong(3);
+                        // Get the file sample rate and compare this with the desired sample rate for the project, they should be the same.
+                        // intSampleRate
+                        lSampleRate = rs.getLong(4);
+                        // <html><font color="FF1493">text text text text text</font></html>
+                        if (lSampleRate == intSampleRate) {
+                            data[row][4] = "<html><font color=\"000000\">" + lSampleRate + "</font></html>";
+                        } else {
+                            data[row][4] = "<html><font color=\"FF4500\">" + lSampleRate + "</font></html>";
+                        }
+//                        data[row][4] = "" + rs.getLong(4);
                         row++;
                     }
                     

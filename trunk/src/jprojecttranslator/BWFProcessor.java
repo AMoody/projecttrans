@@ -392,6 +392,9 @@ public class BWFProcessor extends Observable implements Runnable {
             } else {
                 intEndBytes = (int)(totalFileSize - calculatedFileSize - 8);
             }
+            if (intEndBytes < 8) {
+                return false;
+            }
             System.out.println("Allocating " + intEndBytes + " bytes for the chunks at the end of the file.");
             extraSourceBytes = ByteBuffer.allocate(intEndBytes);
             extraSourceBytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -654,12 +657,16 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         
     }
+    /**
+     * This is used to find out the indicated sample rate of the file from the fmt chunk
+     * @return Returns an int, e.g. 48000
+     */
     public int getSampleRate(){
         chunkIterator = startChunks.iterator();
         chunk tempChunk;
         while (chunkIterator.hasNext()){
               tempChunk = (chunk)chunkIterator.next();
-              // Is this the bext chunk?
+              // Is this the fmt chunk?
               if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
                   // Yes we have found the fmt chunk.
                   ByteBuffer byteData = tempChunk.getBytes();
@@ -671,6 +678,57 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         return 0;
     }
+    /**
+     * This gets the byte rate which is indicated in the fmt chunk.
+     * This is the average byte rate and is intended to be used for buffer estimation
+     * If the file in linear PCM then it is equal to...
+     * (nChannels * nSamplesPerSecond * nBitsPerSample) / 8
+     * @return The byte rate indicated in the fmt chunk
+     */
+    public int getByteRate(){
+        chunkIterator = startChunks.iterator();
+        chunk tempChunk;
+        while (chunkIterator.hasNext()){
+              tempChunk = (chunk)chunkIterator.next();
+              // Is this the fmt chunk?
+              if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
+                  // Yes we have found the fmt chunk.
+                  ByteBuffer byteData = tempChunk.getBytes();
+                  byteData.order(ByteOrder.LITTLE_ENDIAN);
+                  byteData.position(16);
+                  return byteData.getInt();
+//                  break;
+              }
+        }
+        return 0;
+    } 
+    public double getDuration(){
+        chunkIterator = startChunks.iterator();
+        chunk tempChunk;
+        short shortAudioFormat;
+        int intByteRate;
+        while (chunkIterator.hasNext()){
+            tempChunk = (chunk)chunkIterator.next();
+            // Is this the fmt chunk?
+            if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
+                // Yes we have found the fmt chunk.
+                ByteBuffer byteData = tempChunk.getBytes();
+                byteData.order(ByteOrder.LITTLE_ENDIAN);
+                byteData.position(8);
+                shortAudioFormat = byteData.getShort();
+                byteData.position(16);
+                intByteRate = byteData.getInt();
+                if (shortAudioFormat == 1) {
+                    return dataChunkSize/intByteRate;
+                } else {
+                    // Don't know how to calculate duration
+                    return 0;
+                }
+            }
+        }
+        return 0;
+    }
+    
     public boolean hasBextChunk() {
         return bHasBextChunk;
     }
