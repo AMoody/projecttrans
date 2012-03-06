@@ -36,7 +36,8 @@ public class database {
             strSQL = "CREATE TABLE PUBLIC.SOURCE_INDEX (intIndex INTEGER NOT NULL," +
                     "strType CHAR(4), strURI CHAR(256), strUMID CHAR(64), intLength BIGINT NOT NULL, strName CHAR(256),"
                     + " intFileOffset BIGINT NOT NULL, intTimeCodeOffset BIGINT NOT NULL, strSourceFile CHAR(256),"
-                    + " strDestFileName CHAR(256), intCopied BIGINT DEFAULT 0, intIndicatedFileSize BIGINT DEFAULT 0, intSampleRate BIGINT DEFAULT 0, " +
+                    + " strDestFileName CHAR(256), intCopied BIGINT DEFAULT 0, intIndicatedFileSize BIGINT DEFAULT 0,"
+                    + " intSampleRate BIGINT DEFAULT 0, dDuration DOUBLE DEFAULT 0, intVCSInProject INT," +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
