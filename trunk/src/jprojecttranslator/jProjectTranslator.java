@@ -586,7 +586,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         ourTableModel.updateData(ourDatabase);
     }
     class soundFilesTableModel extends AbstractTableModel {
-        final String[] columnNames = new String [] {"Name" , "Source file" , "Status", "Size", "Sample rate"};
+        final String[] columnNames = new String [] {"Name" , "Source file" , "Status", "Duration", "Sample rate"};
         Object[][] data = new Object [][] { };
         protected database ourDatabase;
         protected String strSQL;
@@ -642,7 +642,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 data = new Object [rs.getInt(1)][5];
                 long lDuration, lSampleRate;
                 if (rs.getInt(1) > 0){
-                    strSQL = "SELECT strName, strSourceFile, intIndicatedFileSize, intSampleRate FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+                    strSQL = "SELECT strName, strSourceFile, intIndicatedFileSize, intSampleRate, dDuration FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
                     rs = st.executeQuery(strSQL);
                     while (rs.next()) {
                         data[row][0] = URLDecoder.decode(rs.getString(1), "UTF-8");
@@ -653,7 +653,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                         } else  {
                             data[row][2] = "Not found";
                         }
-                        data[row][3] = "" + rs.getLong(3);
+                        
+                        data[row][3] = getTimeString(rs.getFloat(5));
                         // Get the file sample rate and compare this with the desired sample rate for the project, they should be the same.
                         // intSampleRate
                         lSampleRate = rs.getLong(4);
@@ -678,7 +679,15 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             
             return true;
         }
-
+        
+    }    
+    public static String getTimeString(double dSeconds) {
+        long lHours = (long)dSeconds/(60*60);    
+        dSeconds = dSeconds - (lHours*60*60);
+        long lMinutes = (long)dSeconds/(60);    
+        dSeconds = dSeconds - (lMinutes*60);
+        return String.format("%02d", lHours) + ":" + String.format("%02d", lMinutes) + ":" + String.format("%1$05.2f", dSeconds);
+        
     }    
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;

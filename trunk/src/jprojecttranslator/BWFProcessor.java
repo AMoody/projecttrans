@@ -287,7 +287,12 @@ public class BWFProcessor extends Observable implements Runnable {
         bMultipart = setMultipart;
     }
     public boolean readFile(long setSourceFileStart) {
-        lSourceFileStart = setSourceFileStart;
+        if (bMultipart) {
+            lSourceFileStart = setSourceFileStart;
+        } else {
+            lSourceFileStart = 0;
+        }
+        
         try {
             totalFileSize = (int)srcFile.length();
             inFile = new FileInputStream(srcFile);
@@ -317,9 +322,9 @@ public class BWFProcessor extends Observable implements Runnable {
             errorcode = 1;
             status = 5;
         }
-        indicatedFileSize = sourceBytes.getInt();
-        lSourceFileEnd = lSourceFileStart + indicatedFileSize + 8;
-        // Position now eight bytes from start of file and we have read the indicated file size of all the chunks.
+        indicatedFileSize = sourceBytes.getInt() + 8; // There are 8 extra bytes at the start 'RIFF (filesize(4))'
+        lSourceFileEnd = lSourceFileStart + indicatedFileSize;
+        // Position now eight bytes from start of file and we have read the indicated file size of all the chunks including the RIFF/WAVE headers.
         strTemp = new StringBuffer(4);
         for (int i=0; i<4; i++) {
             strTemp.append((char)sourceBytes.get());
@@ -349,15 +354,15 @@ public class BWFProcessor extends Observable implements Runnable {
             }
             return false;
         }
-        /** All of the files at the start of the file have been read. there could be more chunks at the
+        /** All of the chunks at the start of the file have been read. there could be more chunks at the
          * end of the file and we have to take these in to account when recalculating the file length.
          * To check for chunks at the end we need to compare all the chunks we know about and see if they add up to
          * the current file size.
          * The file size is stored in bytes 4 to 7 as a little endian int and should add up to
-         * allchunks(chunksize + 8) +4
-         * The total file size is actually 8 bytes more than this due to the RIFF and filesize characters at the beginning of the file.
+         * allchunks(chunksize + 8)
+         * The total file size is actually 12 bytes more than this due to the RIFF/WAVE and filesize characters at the beginning of the file.
          */
-        calculatedFileSize = dataChunkSize + 8 + 4;
+        calculatedFileSize = dataChunkSize + 8 + 12;
         // Thats the data chunk added, now to add the other chucks.
         chunkIterator = startChunks.iterator();
         while (chunkIterator.hasNext()){
@@ -376,7 +381,7 @@ public class BWFProcessor extends Observable implements Runnable {
              * But first we should check that the amount of data which seems to be at
              * the end of the file is a sensible amount.
              */
-            if (totalFileSize-calculatedFileSize > 100000 && !bMultipart) {
+            if (totalFileSize-calculatedFileSize > 10000000 && !bMultipart) {
                 // This can't be right, file must be corrupt or it is a multipart file
                 errorcode = 1;
                 status = 5;
@@ -390,7 +395,7 @@ public class BWFProcessor extends Observable implements Runnable {
             if (bMultipart) {
                 intEndBytes = (int)(indicatedFileSize - calculatedFileSize);
             } else {
-                intEndBytes = (int)(totalFileSize - calculatedFileSize - 8);
+                intEndBytes = (int)(totalFileSize - calculatedFileSize);
             }
             if (intEndBytes < 8) {
                 return false;
@@ -399,7 +404,7 @@ public class BWFProcessor extends Observable implements Runnable {
             extraSourceBytes = ByteBuffer.allocate(intEndBytes);
             extraSourceBytes.order(ByteOrder.LITTLE_ENDIAN);
             try {
-                inChannel.position(lSourceFileStart + calculatedFileSize + 8);
+                inChannel.position(lSourceFileStart + calculatedFileSize);
                 inChannel.read(extraSourceBytes);
                 // The buffer should be full
 
@@ -415,7 +420,7 @@ public class BWFProcessor extends Observable implements Runnable {
             extraSourceBytes.flip();
             extractChunks(extraSourceBytes,endChunks);
             // The extra chunks have now been read so the file size calculation should be OK.
-            calculatedFileSize = dataChunkSize + 8 + 4;
+            calculatedFileSize = dataChunkSize + 8 + 12;
             // Thats the data chunk added, now to add the other chucks.
             chunkIterator = startChunks.iterator();
             while (chunkIterator.hasNext()){
@@ -431,16 +436,22 @@ public class BWFProcessor extends Observable implements Runnable {
             if (indicatedFileSize != calculatedFileSize) {
                 // errorcode = 1;
                 System.out.println("WARNING - Potential problem with file " + srcFile + " calculated and indicated sizes do not match, using calculated size.");
-                lSourceFileEnd = lSourceFileStart + calculatedFileSize + 8;
+                System.out.println("Total file size is " + totalFileSize);
+                System.out.println("Indicated file size is " + indicatedFileSize);
+                System.out.println("Calculated file size is " + calculatedFileSize);
+                lSourceFileEnd = lSourceFileStart + calculatedFileSize;
 //                jMediaHarvest.writeErrorString("Potential problem with file " + srcFile + " calculated and indicated sizes do not match.");
 
                 // return;
             }
         }
-        if ((totalFileSize -8) != calculatedFileSize && !bMultipart) {
+        if (totalFileSize != calculatedFileSize && !bMultipart) {
             errorcode = 1;
             System.out.println("Error, can not process input file " + srcFile+ " calculated and total file sizes do not match.");
 //            jMediaHarvest.writeErrorString("Error, can not process input file " + srcFile+ " calculated and total file sizes do not match.");
+            System.out.println("Total file size is " + totalFileSize);
+            System.out.println("Indicated file size is " + indicatedFileSize);
+            System.out.println("Calculated file size is " + calculatedFileSize);
             try {
                 inFile.close();
             } catch (Exception e) {
@@ -479,7 +490,7 @@ public class BWFProcessor extends Observable implements Runnable {
         lByteWriteCounter = 0;
         // First update the first 12 bytes of the ByteBuffer sourceBytes with the new file size
         // So we need to calculate the new file size.        
-        calculatedFileSize = dataChunkSize + 8 + 4;
+        calculatedFileSize = dataChunkSize + 8 + 12;
         chunk tempChunk;
         // Thats the data chunk size added in, now to add up the other chucks.
         chunkIterator = startChunks.iterator();
@@ -498,7 +509,7 @@ public class BWFProcessor extends Observable implements Runnable {
         sourceBytes.limit(12);
         // Limit set 
         sourceBytes.position(4);
-        sourceBytes.putInt((int)calculatedFileSize);
+        sourceBytes.putInt((int)calculatedFileSize - 8);
         // Updated file size written
         sourceBytes.position(0);
         try {
@@ -512,7 +523,7 @@ public class BWFProcessor extends Observable implements Runnable {
                   if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
                       // Yes we have found the bext chunk, this needs to go at the start of the file
                       outChannel.write(tempChunk.getBytes());
-                      lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE();
+                      lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
                       // Now remove it from the Vector so it does not get added again
                       startChunks.remove(tempChunk);
                       bHasBextChunk = false;
@@ -524,7 +535,7 @@ public class BWFProcessor extends Observable implements Runnable {
             while (chunkIterator.hasNext()){
                 tempChunk = (chunk)chunkIterator.next();
                 outChannel.write(tempChunk.getBytes());
-                lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE();
+                lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
             }
             // The start chunks are written, now we need to add the remainder of the source file starting from the data chunk.
             inChannel.position(dataChunkOffset);
@@ -541,7 +552,8 @@ public class BWFProcessor extends Observable implements Runnable {
             while (lBytePointer<lEndByte) {
                 
                 try {
-                    Thread.sleep(Main.randomNumber.nextInt(200) + 500 +(lEndByte/600000)); // Sleep for about 0.6 plus 1s per 600M file size
+                    Thread.sleep(Main.randomNumber.nextInt(200) + 100); // Sleep for about 0.3s
+                    // Thread.sleep(Main.randomNumber.nextInt(200) + 500 +(lEndByte/600000)); // Sleep for about 0.6 plus 1s per 600M file size
                 } catch (InterruptedException e) {
                     System.out.println("Sleep interrupted." );            
                 } 
