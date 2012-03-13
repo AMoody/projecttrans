@@ -191,7 +191,7 @@ public class Main {
         BWFProcessor tempBWFProc = new BWFProcessor();
         tempBWFProc.setSrcFile(fSourceFile);
         tempBWFProc.setMultipart(true); //
-        if (tempBWFProc.readFile(lInitialAudioOffset) && tempBWFProc.getSampleRate() > 0) {
+        if (tempBWFProc.readFile(lInitialAudioOffset,0) && tempBWFProc.getSampleRate() > 0) {
             intSampleRate = tempBWFProc.getSampleRate();
             System.out.println("Sample rate set to " + intSampleRate);
         }
@@ -292,7 +292,7 @@ public class Main {
                 tempBWFProc = new BWFProcessor();
                 tempBWFProc.setSrcFile(fSourceFile);
                 tempBWFProc.setMultipart(true);
-                if (tempBWFProc.readFile(lFileOffset + lInitialAudioOffset)) {
+                if (tempBWFProc.readFile(lFileOffset + lInitialAudioOffset,0)) {
                     if (tempBWFProc.getBextTitle().length() == 0) {
                         tempBWFProc.setBextTitle(strName);
                     }

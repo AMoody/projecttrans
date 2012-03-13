@@ -385,9 +385,7 @@ public class BWFProcessor extends Observable implements Runnable {
         if (dataChunkSize == 0 && lIndicatedFileSize > lCalculatedFileSize) {
             dataChunkSize = lIndicatedFileSize - lCalculatedFileSize;
             lCalculatedFileSize = lIndicatedFileSize;
-            setFormatTag((short)0x0055);
-            // Also need to add a fact chunk
-            System.out.println("After correcting for the special case where VCS has stored an MP3 file in the project...");
+            System.out.println("After correcting for the special case where VCS has set the data chunk size to 0...");
             System.out.println("Total file size is " + lTotalFileSize);
             System.out.println("Indicated file size is " + lIndicatedFileSize);
             System.out.println("Calculated file size is " + lCalculatedFileSize);
@@ -626,7 +624,7 @@ public class BWFProcessor extends Observable implements Runnable {
     }
     private void extractChunks(ByteBuffer inputData, Vector chunkVector) {
         /** This will process the given Byte Buffer and add chunk objects to the given vector.
-         * The values of errorcount and data chunk infomrtion will be updated if required.
+         * The values of errorcount and data chunk information will be updated if required.
          * When this method is called the pointer must be at the start of the ckID
          */
         while (inputData.hasRemaining()) {
@@ -733,7 +731,64 @@ public class BWFProcessor extends Observable implements Runnable {
               }
         }
         return 0;
-    } 
+    }
+    public double getNoOfSamples() {
+        // The number of samples in the file should be calculable from
+        // No of channels * Sample rate * data chunk size / Byte rate
+        chunkIterator = startChunks.iterator();
+        chunk tempChunk;
+        int intChannels, intSampleRate, intByteRate;
+        while (chunkIterator.hasNext()){
+            tempChunk = (chunk)chunkIterator.next();
+            // Is this the fmt chunk?
+            if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
+                // Yes we have found the fmt chunk.
+                ByteBuffer byteData = tempChunk.getBytes();
+                byteData.order(ByteOrder.LITTLE_ENDIAN);
+                byteData.position(10);
+                intChannels = byteData.getShort();
+                byteData.position(12);
+                intSampleRate = byteData.getInt();
+                byteData.position(16);
+                intByteRate = byteData.getInt();
+                if (intByteRate > 0) {
+                    return intChannels * intSampleRate * dataChunkSize / intByteRate;
+                }
+                
+                
+            }
+        }
+        return 0;
+    }
+    public boolean setFactSamples(int setNoOfSamples) {
+        chunkIterator = startChunks.iterator();
+        chunk tempChunk;
+        while (chunkIterator.hasNext()){
+            tempChunk = (chunk)chunkIterator.next();
+            // Is this the fact chunk?
+            if ((tempChunk.getckID()).equalsIgnoreCase("fact") ){
+                ByteBuffer byteData = ByteBuffer.allocate(4);
+                byteData.order(ByteOrder.LITTLE_ENDIAN);
+                byteData.putInt(setNoOfSamples);
+                byteData.position(0);
+                if (tempChunk instanceof chunk) {
+                    return tempChunk.setBytes(byteData, 0);
+                } else {
+                    return false;
+                }
+            }
+        }
+        // If we get here the fact chunk was not found
+        ByteBuffer tempData = ByteBuffer.allocate(12);
+        tempData.order(ByteOrder.LITTLE_ENDIAN);
+        tempData.position(0);
+        tempData.put("fact".getBytes());
+        tempData.putInt(4);
+        tempData.putInt(setNoOfSamples);
+        tempData.position(0);
+        startChunks.add(new chunk(tempData));
+        return true;
+    }
     public double getDuration(){
         chunkIterator = startChunks.iterator();
         chunk tempChunk;

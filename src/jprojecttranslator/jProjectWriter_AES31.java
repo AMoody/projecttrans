@@ -118,6 +118,10 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strADLText = strADLText + str4Space + "</PROJECT>\n";
 
             }
+            // Write the SYSTEM section
+            strADLText = strADLText + str4Space + "<SYSTEM>\n";
+            strADLText = strADLText + str8Space + "(SYS_XFADE_LEN)    " + String.format("%04d", jProjectTranslator.intXfadeLength) + "\n";
+            strADLText = strADLText + str4Space + "</SYSTEM>\n";
             // Fill in the SEQUENCE tags
             strADLText = strADLText + str4Space + "<SEQUENCE>\n";
             strADLText = strADLText + str8Space + "(SEQ_SAMPLE_RATE)  S" + jProjectTranslator.intSampleRate +  "\n";

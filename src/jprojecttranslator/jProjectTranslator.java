@@ -52,11 +52,10 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     private static javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
     public static int intSampleRate = 48000;
     public static double dFrameRate = 25;
+    public static int intXfadeLength = 200;
 //    public static double dFrameRate = 29.97;
     /* This stores the last used folder. */
     private static File fPath;
-    // This is the message panel which is used to display information and ask questions
-//    public jMessagePanel messagePanel;
     public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
     public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss");
     // This sets the number of messages displayed
@@ -395,6 +394,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     if (ourWindow.getLocationOnScreen().y > 0)
     usersIniFile.WriteInteger("General","WindowY",ourWindow.getLocationOnScreen().y);
     usersIniFile.WriteInteger("General", "SampleRate", intSampleRate);
+    usersIniFile.WriteInteger("General", "XfadeLength", intXfadeLength);
     usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dFrameRate));
     usersIniFile.WriteString("General", "CurrentPath", fPath.toString());
     usersIniFile.UpdateFile();
@@ -544,6 +544,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         int intHTTPPort = usersIniFile.ReadInteger("General","intHTTPPort",0);
         intSampleRate = usersIniFile.ReadInteger("General","SampleRate",48000);
         dFrameRate = Double.parseDouble(usersIniFile.ReadString("General","FrameRate","25"));
+        intXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",200);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         if (intHTTPPort > 0) {
             try {
