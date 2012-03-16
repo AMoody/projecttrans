@@ -193,6 +193,11 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Project Translator");
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent evt) {
+                formWindowClosing(evt);
+            }
+        });
 
         jToolBar1.setRollover(true);
 
@@ -387,20 +392,22 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     }// </editor-fold>//GEN-END:initComponents
 
     private void exitForm(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exitForm
-    usersIniFile.WriteInteger("General","WindowWidth",ourWindow.getWidth());
-    usersIniFile.WriteInteger("General","WindowHeight",ourWindow.getHeight());
-    if (ourWindow.getLocationOnScreen().x > 0)
-    usersIniFile.WriteInteger("General","WindowX",ourWindow.getLocationOnScreen().x);
-    if (ourWindow.getLocationOnScreen().y > 0)
-    usersIniFile.WriteInteger("General","WindowY",ourWindow.getLocationOnScreen().y);
-    usersIniFile.WriteInteger("General", "SampleRate", intSampleRate);
-    usersIniFile.WriteInteger("General", "XfadeLength", intXfadeLength);
-    usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dFrameRate));
-    usersIniFile.WriteString("General", "CurrentPath", fPath.toString());
-    usersIniFile.UpdateFile();
-    System.exit(0);
+        exitForm();
     }//GEN-LAST:event_exitForm
-
+    private void exitForm() {
+        usersIniFile.WriteInteger("General","WindowWidth",ourWindow.getWidth());
+        usersIniFile.WriteInteger("General","WindowHeight",ourWindow.getHeight());
+        if (ourWindow.getLocationOnScreen().x > 0)
+        usersIniFile.WriteInteger("General","WindowX",ourWindow.getLocationOnScreen().x);
+        if (ourWindow.getLocationOnScreen().y > 0)
+        usersIniFile.WriteInteger("General","WindowY",ourWindow.getLocationOnScreen().y);
+        usersIniFile.WriteInteger("General", "SampleRate", intSampleRate);
+        usersIniFile.WriteInteger("General", "XfadeLength", intXfadeLength);
+        usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dFrameRate));
+        usersIniFile.WriteString("General", "CurrentPath", fPath.toString());
+        usersIniFile.UpdateFile();
+        System.exit(0);        
+    }
     private void menuOpen(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuOpen
         // File open 
         fc.setAcceptAllFileFilterUsed(false);
@@ -436,7 +443,12 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         // Save the project
         fc.setAcceptAllFileFilterUsed(false);
         fc.resetChoosableFileFilters();
-        String strOpenedFileName = fc.getSelectedFile().toString();
+        String strOpenedFileName;
+        try {
+            strOpenedFileName = fc.getSelectedFile().toString();
+        } catch (java.lang.NullPointerException e) {
+            strOpenedFileName = "";
+        }
         int intDot = strOpenedFileName.lastIndexOf(".");
         if (intDot > 0) {
             String strSaveFilename = strOpenedFileName.substring(0, intDot);
@@ -486,10 +498,15 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
     private void menuPreferences(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuPreferences
         jPreferences dlgPref = new jPreferences(this,true);
-        dlgPref.setDropDowns(Integer.toString(intSampleRate) , String.format("%.2f", dFrameRate));
+        dlgPref.setDropDowns(Integer.toString(intSampleRate) , String.format("%.2f", dFrameRate), intXfadeLength);
+        dlgPref.setLocationRelativeTo(null);
         dlgPref.setVisible(true);
         
     }//GEN-LAST:event_menuPreferences
+
+    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
+        exitForm();
+    }//GEN-LAST:event_formWindowClosing
 
     /**
      @param args A filename reference to be loaded automatically, the file type will be guessed from the extension
@@ -544,7 +561,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         int intHTTPPort = usersIniFile.ReadInteger("General","intHTTPPort",0);
         intSampleRate = usersIniFile.ReadInteger("General","SampleRate",48000);
         dFrameRate = Double.parseDouble(usersIniFile.ReadString("General","FrameRate","25"));
-        intXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",200);
+        intXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",9600);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         if (intHTTPPort > 0) {
             try {
