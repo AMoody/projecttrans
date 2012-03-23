@@ -32,7 +32,21 @@ public class database {
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
             }
-            // Create the SOURCE_INDEX table
+            /** Create the TRACK table.
+             * This is not used directly by the ADL but some project formats do include information about
+             * the tracks in the EDL
+             */
+            strSQL = "CREATE TABLE PUBLIC.TRACKS (intIndex INTEGER NOT NULL," +
+                    " strName CHAR(256), intChannels INTEGER, intChannelOffset INTEGER, strChannelMap CHAR(9)," +
+                    "PRIMARY KEY (intIndex));";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL);
+            }
+            /** Create the SOURCE_INDEX table
+             * This contains information about the audio file sources in the project.
+             * This information is used to generate the SOURCE_INDEX section of the ADL file.
+             */
             strSQL = "CREATE TABLE PUBLIC.SOURCE_INDEX (intIndex INTEGER NOT NULL," +
                     "strType CHAR(4), strURI CHAR(256), strUMID CHAR(64), intLength BIGINT NOT NULL, strName CHAR(256),"
                     + " intFileOffset BIGINT NOT NULL, intTimeCodeOffset BIGINT NOT NULL, strSourceFile CHAR(256),"
@@ -43,7 +57,9 @@ public class database {
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
             }
-            // Create the EVENT_LIST table
+            /** Create the EVENT_LIST table
+             * This contains information about entries on the EDL tracks
+             */
             strSQL = "CREATE TABLE PUBLIC.EVENT_LIST (intIndex INTEGER NOT NULL," +
                     "strType CHAR(16), strRef CHAR(4), intSourceIndex INTEGER NOT NULL," +
                     "strTrackMap CHAR(16), intSourceIn BIGINT NOT NULL, intDestIn BIGINT NOT NULL, intDestOut BIGINT NOT NULL," +
@@ -53,7 +69,9 @@ public class database {
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
             }
-            // Create the FADER_LIST table
+            /** Create the FADER_LIST table
+             * This contains information about the gain automation
+             */
             strSQL = "CREATE TABLE PUBLIC.FADER_LIST (intTrack INTEGER NOT NULL, intTime BIGINT NOT NULL, strLevel CHAR(16)" +
                     ");";
             i = st.executeUpdate(strSQL);
