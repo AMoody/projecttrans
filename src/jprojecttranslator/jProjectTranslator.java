@@ -41,6 +41,10 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     /** We need to retain a reference to the window when we create it so we can
      *access the objects it contains. This is it.*/
     static jProjectTranslator ourWindow;
+    /** <p>This is a static random number generator for this class, all objects share the generator.<br>
+     * As this is public, other objects can also use it.</p>
+     */
+    public static Random randomNumber = new Random();
     /** This is a source file to be loaded. */
     private static String strSourceProjectFile;
     /** This is the ini file which stores the users own settings in their home folder.*/
@@ -58,6 +62,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     private static File fPath;
     public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
     public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss");
+    public static DateTimeFormatter fmtHHMMSS = DateTimeFormat.forPattern("HHmmss");
     // This sets the number of messages displayed
     private int intMessageQueueLength = 3;
     // This stores the last intMessageQueueLength messages
@@ -575,7 +580,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
          * Add the available project readers and writers here so we can filter the source and dest file types
          */
         listReaders.add(new jProjectReader_VCS());
-        // listReaders.add(new jProjectReader_ARDOUR());
+        listReaders.add(new jProjectReader_ARDOUR());
         // listReaders.add(new jProjectReader_AES31());
         listWriters.add(new jProjectWriter_AES31());
         // listWriters.add(new jProjectWriter_ARDOUR());
@@ -698,7 +703,15 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             return true;
         }
         
-    }    
+    }
+    public static String getNewUSID() {
+        String strUSID = "UKGNU" + String.format("%06d", randomNumber.nextInt(1000000)) + String.format("%06d", randomNumber.nextInt(1000000));
+        DateTime dtsCreated = (new DateTime()).withZone(DateTimeZone.UTC);
+        strUSID = strUSID + fmtHHMMSS.print(dtsCreated);
+        strUSID = strUSID + String.format("%09d", randomNumber.nextInt(1000000000));
+        return strUSID;
+        
+    }
     public static String getTimeString(double dSeconds) {
         long lHours = (long)dSeconds/(60*60);    
         dSeconds = dSeconds - (lHours*60*60);
