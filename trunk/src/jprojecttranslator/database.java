@@ -59,11 +59,25 @@ public class database {
             }
             /** Create the EVENT_LIST table
              * This contains information about entries on the EDL tracks
+             * intIndex This is the key for the table
+             * strType  This always seems to be Cut
+             * strRef   This always seems to be I
+             * intSourceIndex   This refers to the entry in the SOUCE_INDEX table
+             * strTrackMap      This is a string used in an ADL file, e.g. 1~2 3~4 means tracks 1 and 2 from the source file go to tracks 3 and 4 in the EDL. Could also be 23 23 etc for mono files.
+             * intSourceIn      This is a long or bigint, it's the in point in the source file in samples.
+             * intDestIn        This is a long or bigint, it's the in point in the EDL in samples.
+             * intDestOut       This is a long or bigint, it's the out point in the EDL in samples.
+             * strRemark        This is the name of the EDL entry
+             * strInFade        This describes the in fade on the EDL, e.g. LIN _ _ _ or CURVE -2.70 -4.70 -13.23 etc
+             * intInFade        This is the duration of the in fade in samples
+             * strOutFade        This describes the out fade on the EDL, e.g. LIN _ _ _ or CURVE -2.70 -4.70 -13.23 etc
+             * intOutFade        This is the duration of the out fade in samples
+             * 
              */
             strSQL = "CREATE TABLE PUBLIC.EVENT_LIST (intIndex INTEGER NOT NULL," +
                     "strType CHAR(16), strRef CHAR(4), intSourceIndex INTEGER NOT NULL," +
                     "strTrackMap CHAR(16), intSourceIn BIGINT NOT NULL, intDestIn BIGINT NOT NULL, intDestOut BIGINT NOT NULL," +
-                    "strRemark CHAR(512), strFadeType CHAR(16)," +
+                    "strRemark CHAR(512), strInFade CHAR(30), intInFade BIGINT,  strOutFade CHAR(30), intOutFade BIGINT," +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
