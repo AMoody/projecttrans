@@ -51,6 +51,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         
         setChanged();
         notifyObservers();
+        oProjectTranslator.updateTable();
         System.out.println("Ardour project file loaded");
         return true;
     }
@@ -277,7 +278,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         long lDestIn = (Long.parseLong(xmlRegion.attributeValue("position")));
         long lDestOut = (Long.parseLong(xmlRegion.attributeValue("length"))) + lDestIn;
-        long lSourceIn = (Long.parseLong(xmlRegion.attributeValue("ancestral-start")));
+        long lSourceIn = (Long.parseLong(xmlRegion.attributeValue("start")));
         String strType = "Cut";
         String strRef = "I";
         String strSourceChannel = "1";
@@ -285,13 +286,34 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         String strDestChannel ;
         String strTrackMap;
         int intSourceIndex;
+        // Get the fade in values
+        Element xmlFadeIn = xmlRegion.element("FadeIn");
+        fade fadeIn = new fade();
+        String strInFade = "";
+        long lInFade = 0;
+        if (fadeIn.loadArdourElement(xmlFadeIn)) {
+            strInFade = fadeIn.getFade();
+            lInFade = fadeIn.getLength();
+        }
+        // Get the fade in values
+        Element xmlFadeOut = xmlRegion.element("FadeOut");
+        fade fadeOut = new fade();
+        String strOutFade = "";
+        long lOutFade = 0;
+        if (fadeOut.loadArdourElement(xmlFadeOut)) {
+            strOutFade = fadeOut.getFade();
+            lOutFade = fadeOut.getLength();
+        }
         for(int i=1; i<intChannelCount + 1; i++){
             strDestChannel = "" + (i + intMapOffset - 1);
             strTrackMap = strSourceChannel + " " + strDestChannel;
             intSourceIndex = Integer.parseInt(xmlRegion.attributeValue("source-" + (i-1)));
+            
             try {
-                strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark) VALUES (" +
-                    intClipCounter++ + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\') ;";
+                strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
+                        + ", strInFade, intInFade, strOutFade, intOutFade) VALUES (" +
+                    intClipCounter++ + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
+                        + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', \'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ") ;";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());

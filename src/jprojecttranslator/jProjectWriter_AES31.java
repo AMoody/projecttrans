@@ -147,6 +147,8 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             String strDestOut;
             String strRemark;
             String strTimeCodeOffset;
+            String strInFade = "";
+            String strOutFade = "";
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
             while (rs.next()) {
@@ -162,7 +164,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             // Fill in the EVENT_LIST tags
             strADLText = strADLText + str4Space + "<EVENT_LIST>\n";
             strSQL = "SELECT EVENT_LIST.intIndex, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, "
-                    + "strRemark, intTimeCodeOffset FROM PUBLIC.EVENT_LIST, PUBLIC.SOURCE_INDEX "
+                    + "strRemark, intTimeCodeOffset, strInFade, intInFade, strOutFade, intOutFade FROM PUBLIC.EVENT_LIST, PUBLIC.SOURCE_INDEX "
                     + "WHERE EVENT_LIST.intSourceIndex = SOURCE_INDEX.intIndex ORDER BY EVENT_LIST.intIndex;";
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
@@ -173,8 +175,16 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strDestIn = getADLTimeString(rs.getInt(5), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
                 strDestOut = getADLTimeString(rs.getInt(6), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
                 strRemark = URLDecoder.decode(rs.getString(7), "UTF-8");
+                strInFade = rs.getString(9);
+                strOutFade = rs.getString(11);
                 strADLText = strADLText + str8Space + "(Entry) " + strIndex + "\n";
                 strADLText = strADLText + str12Space + "(Cut) I " + strSourceIndex + "  " + rs.getString(3) + "  " + strSourceIn + "  " + strDestIn + "  " + strDestOut + "  R\n";
+                if (strInFade.length() > 0) {
+                    strADLText = strADLText + str12Space + "(Infade) " + getADLTimeString(rs.getInt(10), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate) + "  " + strInFade + "\n";
+                }
+                if (strOutFade.length() > 0) {
+                    strADLText = strADLText + str12Space + "(Outfade) " + getADLTimeString(rs.getInt(12), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate) + "  " + strOutFade + "\n";
+                }                
                 if (strRemark.length() > 0) {
                     strADLText = strADLText + str12Space + "(Rem) NAME \"" + strRemark + "\"\n";
                 }
