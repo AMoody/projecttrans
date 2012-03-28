@@ -107,8 +107,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 ResultSet rs = st.executeQuery(strSQL);
                 rs.next();
                 String strTitle = URLDecoder.decode(rs.getString(1), "UTF-8");
-                DateTime dtCreated = fmtSQL.parseDateTime(rs.getString(2).substring(0, 19)).withZone(DateTimeZone.UTC);
-                String strCreated  = fmtDisplay.print(dtCreated);
+                DateTime dtCreated = fmtSQL.withZone(DateTimeZone.UTC).parseDateTime(rs.getString(2).substring(0, 19));
+                String strCreated  = fmtDisplay.withZone(DateTimeZone.getDefault()).print(dtCreated);
                 jTextField1.setText(strTitle);
                 jTextField2.setText(strCreated);
 

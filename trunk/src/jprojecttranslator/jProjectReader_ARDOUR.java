@@ -15,7 +15,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.Iterator;
+import java.util.*;
 import org.dom4j.Element;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -27,7 +27,8 @@ import org.joda.time.DateTimeZone;
 public class jProjectReader_ARDOUR extends jProjectReader {
     /** This is the xml document object which is used for loading and saving to an xml file.*/
     static Document xmlDocument = DocumentHelper.createDocument();
-    
+    DateTime dtsCreated;
+        
     /*
      * This returns a FileFilter which this class can read
      */
@@ -37,6 +38,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     }    
     
     protected boolean processProject() {
+        dtsCreated = new DateTime(fSourceFile.lastModified(), DateTimeZone.getDefault());
         if (!loadXMLData(fSourceFile)) {
             return false;
         }
@@ -158,8 +160,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         String strSampleRate = xmlRoot.attributeValue("sample-rate");
         String strNotes = "";
         String strAudioSubFolder = "interchange/" + strTitle + "/audiofiles";
-        DateTime dtsCreated = (new DateTime()).withZone(DateTimeZone.UTC);
-        String strCreated = fmtSQL.print(dtsCreated);
+        String strCreated = fmtSQL.withZone(DateTimeZone.UTC).print(dtsCreated);
         int intSampleRate = Integer.parseInt(strSampleRate);
         if (jProjectTranslator.intSampleRate != intSampleRate) {
             oProjectTranslator.writeStringToPanel("This project is not at your preferred sample rate so it can not be opened, the project rate is " + intSampleRate);
@@ -257,8 +258,57 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 parseRegionData(xmlRegion, intChannelOffset, st);
 
             }
+            Element xmlCrossfade;
+            for (Iterator i = xmlPlaylist.elementIterator("Crossfade");i.hasNext();) {
+                xmlCrossfade = (Element)i.next();
+                parseCrossfadeData(xmlCrossfade, st);
+
+            }
         } catch (java.sql.SQLException e) {
             System.out.println("Error on SQL " + strSQL + e.toString());
+        }
+        
+    }
+    protected void parseCrossfadeData(Element xmlCrossfade, Statement st) {
+        if (xmlCrossfade.attributeValue("active")!= null && xmlCrossfade.attributeValue("active").equalsIgnoreCase("no") ) {
+            return;
+        }
+        int intCrossfadeOut = Integer.parseInt(xmlCrossfade.attributeValue("out"));
+        int intCrossfadeIn = Integer.parseInt(xmlCrossfade.attributeValue("in"));
+        long lCrossfade = Long.parseLong(xmlCrossfade.attributeValue("length"));
+        // Get the fade in values
+        Element xmlFadeIn = xmlCrossfade.element("FadeIn");
+        fade fadeIn = new fade();
+        String strInFade = "";
+        if (fadeIn.loadArdourFade(xmlFadeIn)) {
+            strInFade = fadeIn.getFade();
+        }
+        // Get the fade in values
+        Element xmlFadeOut = xmlCrossfade.element("FadeOut");
+        fade fadeOut = new fade();
+        String strOutFade = "";
+        if (fadeOut.loadArdourFade(xmlFadeOut)) {
+            strOutFade = fadeOut.getFade();
+        }
+        try {
+            if (strInFade.length() > 0){
+                strSQL = "UPDATE PUBLIC.EVENT_LIST SET strInFade = \'" + strInFade + "\', intInFade = " + lCrossfade + " WHERE intRegionIndex = " + intCrossfadeIn + ";";
+                int j = st.executeUpdate(strSQL);
+                if (j == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                }
+            }
+            if (strOutFade.length() > 0){
+                strSQL = "UPDATE PUBLIC.EVENT_LIST SET strOutFade = \'" + strOutFade + "\', intOutFade = " + lCrossfade + " WHERE intRegionIndex = " + intCrossfadeOut + ";";
+                int j = st.executeUpdate(strSQL);
+                if (j == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+            return;
+        
         }
         
     }
@@ -304,6 +354,25 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             strOutFade = fadeOut.getFade();
             lOutFade = fadeOut.getLength();
         }
+        // Get the gain automation data for this region
+        Element xmlEnvelope = xmlRegion.element("Envelope");
+        List listGainValues = new ArrayList();
+        float fOffset, fValue;
+        if (xmlEnvelope.element("AutomationList") != null && xmlEnvelope.element("AutomationList").element("events") != null) {
+            String strKey, strValue;
+            
+            String strEvents = xmlEnvelope.element("AutomationList").elementText("events");
+            StringTokenizer stTokens = new StringTokenizer(strEvents); 
+            while(stTokens.hasMoreTokens()) {
+                strKey = stTokens.nextToken();
+                fOffset = java.lang.Math.round(Float.parseFloat(strKey));
+                strValue = stTokens.nextToken();
+                fValue = Float.parseFloat(strValue);
+                // The list consists of keys which are the time in samples across the region, and values which are a float between 1 and 0.
+                float[] fTemp = {fOffset, fValue};
+                listGainValues.add(fTemp);
+            }
+        }
         for(int i=1; i<intChannelCount + 1; i++){
             strDestChannel = "" + (i + intMapOffset - 1);
             strTrackMap = strSourceChannel + " " + strDestChannel;
@@ -311,12 +380,26 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             
             try {
                 strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
-                        + ", strInFade, intInFade, strOutFade, intOutFade) VALUES (" +
+                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex) VALUES (" +
                     intClipCounter++ + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
-                        + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', \'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ") ;";
+                        + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', "
+                        + "\'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ", " + intRegionIndex + ") ;";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                }
+                if (listGainValues.size() > 0) {
+                    Iterator itr = listGainValues.iterator();
+                    float[] fTemp;
+                    while(itr.hasNext()) {
+                        fTemp = (float[])(itr.next());
+                        strSQL = "INSERT INTO PUBLIC.FADER_LIST (intTrack, intTime, strLevel) VALUES (" +
+                    (i + intMapOffset - 1) + ", " + (fTemp[0] + lDestIn) + ",\'" + String.format("%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
+                        j = st.executeUpdate(strSQL);
+                        if (j == -1) {
+                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                        }
+                    }
                 }
                 
             } catch (java.sql.SQLException e) {
