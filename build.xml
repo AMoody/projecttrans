@@ -10,6 +10,15 @@
 <project name="jProjectTranslator" default="default" basedir=".">
     <description>Builds, tests, and runs the project jProjectTranslator.</description>
     <import file="nbproject/build-impl.xml"/>
+    <target name="-post-jar">
+        <jar update="true" destfile="${dist.jar}">
+            <zipfileset src="lib/dom4j-full.jar" />
+            <zipfileset src="lib/hsqldb.jar" />			
+            <zipfileset src="lib/joda-time.jar" />
+            <zipfileset src="lib/NanoHTTPD.jar" />			
+            <zipfileset src="lib/OpenForecast-0.5.0.jar" />
+        </jar>
+    </target>    
     <!--
 
     There exist several targets which are by default empty and which can be 
