@@ -19,7 +19,10 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- *
+ * Project writer for AES31 projects.
+ * This will write an ADL file and a set of BWAV files.
+ * If the source files did not have a bext chunk then this will be added as this is mandatory for AES31.
+ * The audio file format will not be changed.
  * @author arth
  */
 public class jProjectWriter_AES31 extends jProjectWriter {
@@ -179,13 +182,13 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strOutFade = rs.getString(11);
                 strADLText = strADLText + str8Space + "(Entry) " + strIndex + "\n";
                 strADLText = strADLText + str12Space + "(Cut) I " + strSourceIndex + "  " + rs.getString(3) + "  " + strSourceIn + "  " + strDestIn + "  " + strDestOut + "  R\n";
-                if (strInFade.length() > 0) {
+                if (strInFade != null && strInFade.length() > 0) {
                     strADLText = strADLText + str12Space + "(Infade) " + getADLTimeString(rs.getInt(10), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate) + "  " + strInFade + "\n";
                 }
-                if (strOutFade.length() > 0) {
+                if (strOutFade != null && strOutFade.length() > 0) {
                     strADLText = strADLText + str12Space + "(Outfade) " + getADLTimeString(rs.getInt(12), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate) + "  " + strOutFade + "\n";
                 }                
-                if (strRemark.length() > 0) {
+                if (strRemark != null && strRemark.length() > 0) {
                     strADLText = strADLText + str12Space + "(Rem) NAME \"" + strRemark + "\"\n";
                 }
             }

@@ -21,7 +21,14 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
 /**
- *
+ * Project reader for Ardour projects.
+ * Regions from edl tracks are read. 
+ * As ardour supports an arbitrary number of audio channels per edl track these have been split apart in to mono tracks in the ADL file.
+ * Regions in Ardour can be opaque or transparent, it's not always possible to support this in other editors.
+ * Crossfades are converted to a fade in and a fade out.
+ * Gain automation is copied across.
+ * Ardour defaults to recording 32 bit floating point files, these may not be supported on other systems. 
+ * For best compatibility Ardour files should be recorded as 16 or 24 bit BWAVs.
  * @author arth
  */
 public class jProjectReader_ARDOUR extends jProjectReader {
@@ -29,14 +36,18 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     static Document xmlDocument = DocumentHelper.createDocument();
     DateTime dtsCreated;
         
-    /*
-     * This returns a FileFilter which this class can read
+    /**
+     * This returns a FileFilter which shows the files this class can read
+     * @return FileFilter
      */
     public javax.swing.filechooser.FileFilter getFileFilter() {
         javax.swing.filechooser.FileFilter filter = new FileNameExtensionFilter("Ardour (.ardour)", "ardour");
         return filter;
     }    
-    
+    /**
+     * This loads up an Ardour xml project in to the database.
+     * @return      True if the project was loaded.
+     */
     protected boolean processProject() {
         dtsCreated = new DateTime(fSourceFile.lastModified(), DateTimeZone.getDefault());
         if (!loadXMLData(fSourceFile)) {
@@ -58,7 +69,10 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         return true;
     }
     
-    /** This method will load the XML data in to a document held in memory.
+    /**
+     * This loads the Ardour project file which is XML in to and internal xml Document.
+     * @param setSourceFile     This is the source file.
+     * @return                  Returns true if the file was loaded.
      */
     protected boolean loadXMLData(File setSourceFile) {
         try {
@@ -73,6 +87,14 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         return true;
     }
+    /**
+     * Read data from sound files which are referenced in the project if possible.
+     * The sound files can contain useful information such as duration, USID etc.
+     * Files which are written out as part of an AES31 project have to be BWAVs, i.e. they must have a bext chunk.
+     * @param st                This allows the database to be updated.
+     * @param fAudioFolder      This is the folder on the system where the files should be found.
+     * @return                  Return the number of files found.
+     */
     protected int loadSoundFiles(Statement st, File fAudioFolder) {
         try {
             strSQL = "SELECT intIndex, strName, strSourceFile FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
@@ -145,11 +167,16 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             System.out.println("Error on decoding at " + strSQL + e.toString());
         }
         System.out.println(" " + intSoundFilesLoaded + " sound files have been read from source file");
-        return 0;
+        return intSoundFilesLoaded;
     }
-    /*
+
+    
+    /**
+     * 
      * This method parses the xml fields from the VCS project and adds the
-     * information to the database
+     * information to the database.
+     * @param setRoot   This is the root element in the xml file.
+     * @return          Return true if the file was parsed.
      */
     protected boolean parseARDOURXML(Element setRoot) {
         Element xmlRoot = setRoot;
@@ -194,7 +221,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         File fAudioFolder = new File (fSourceFolder, strAudioSubFolder);
         for (Iterator i = xmlSources.elementIterator("Source");i.hasNext();) {
             xmlSource = (Element)i.next();
-            parseSourceData(xmlSource, st, fAudioFolder);
+            parseSourceData(xmlSource, st);
         }
         // Need to look at the sound files now to get further information
         loadSoundFiles(st, fAudioFolder);
@@ -203,7 +230,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         Element xmlDiskStream;
         for (Iterator i = xmlDiskStreams.elementIterator("AudioDiskstream");i.hasNext();) {
             xmlDiskStream = (Element)i.next();
-            parseDiskStreamData(xmlDiskStream, st, fSourceFolder);
+            parseDiskStreamData(xmlDiskStream, st);
 
         }
         // Playlists are the tracks in the EDL and these contain regions
@@ -211,13 +238,19 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         Element xmlPlaylist;
         for (Iterator i = xmlPlaylists.elementIterator("Playlist");i.hasNext();) {
             xmlPlaylist = (Element)i.next();
-            parsePlaylistData(xmlPlaylist, st, fSourceFolder);
+            parsePlaylistData(xmlPlaylist, st);
 
         }
         
         return true;
-    } 
-    protected void parseDiskStreamData(Element xmlDiskStream, Statement st, File fSourceFolder) {
+    }
+    /**
+     * Parse the DiskStreams element from the Ardour project file.
+     * This contains some information about the tracks in the EDL including the number of channls.
+     * @param xmlDiskStream     This is an xml Element containing the DiskStream data
+     * @param st                This allows the database to be updated.
+     */
+    protected void parseDiskStreamData(Element xmlDiskStream, Statement st) {
         int intAudioDiskstreamIndex = Integer.parseInt(xmlDiskStream.attributeValue("id"));
         String strName = xmlDiskStream.attributeValue("name");
         int intChannels = Integer.parseInt(xmlDiskStream.attributeValue("channels"));
@@ -242,7 +275,13 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             System.out.println("Error on SQL " + strSQL + e.toString());
         }
     }
-    protected void parsePlaylistData(Element xmlPlaylist, Statement st, File fSourceFolder) {
+    /**
+     * Parse an Ardour playlist, this is a channel or track in the EDL.
+     * This loops through all the regions and crossfades and adds the data to the database.
+     * @param xmlPlaylist     This is an xml Element containing the playlist data
+     * @param st              This allows the database to be updated.
+     */
+    protected void parsePlaylistData(Element xmlPlaylist, Statement st) {
         int intPlaylistIndex = Integer.parseInt(xmlPlaylist.attributeValue("orig_diskstream_id"));
         int intChannelOffset = 1;
         strSQL = "SELECT intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intPlaylistIndex + ";";
@@ -269,6 +308,13 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         
     }
+    /**
+     * Parse Ardour crossfade data to the database.
+     * When regions overlap a crossfade is created automatically.
+     * This needs to be split up and converted to a fade out and fade in.
+     * @param xmlCrossfade     This is an xml Element containing the crossfade data
+     * @param st               This allows the database to be updated.
+     */
     protected void parseCrossfadeData(Element xmlCrossfade, Statement st) {
         if (xmlCrossfade.attributeValue("active")!= null && xmlCrossfade.attributeValue("active").equalsIgnoreCase("no") ) {
             return;
@@ -311,14 +357,29 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         
         }
         
-    }
+    }/**
+     * Parse an Ardour 'region' in to the EVENT_LIST table.
+     * Entries on an EDL are called regions in Ardour. Regions can have any number of audio tracks.
+     * For maximum compatability these will be treated as mono. All editing systems can handle mono tracks, some can handle stereo but few can handle multichannel tracks.
+     * The track map in the EVENT_LIST table can contain text like this '1 4' meaning source channel 1 goes to edl channel 4.
+     * Stereo mapping looks like this, '1~2 3~4'
+     * @param xmlRegion     This is an xml Element containing the region data
+     * @param intMapOffset  Each audio track is offset by this number in the database
+     * @param st            This allows the database to be updated.
+     */
     protected void parseRegionData(Element xmlRegion, int intMapOffset, Statement st) {
-        /** Each region can consist of one or more channels. For maximum compatability
-         * these will be treated as mono. All editing systems can handle mono tracks, some can handle stereo but few can handle multichannel tracks.
-         * The track map in the EVENT_LIST table can contain text like this '1 4' meaning source channel 1 goes to edl channel 4.
-         * Stereo mapping looks like this, '1~2 3~4'
+        /** Each region can consist of one or more channels. 
          */
         int intRegionIndex = Integer.parseInt(xmlRegion.attributeValue("id"));
+        int intLayer = Integer.parseInt(xmlRegion.attributeValue("layer"));
+        String strFlags = xmlRegion.attributeValue("flags");
+        boolean bOpaque = (strFlags.indexOf("Opaque") > -1);
+        String strOpaque;
+        if (bOpaque) {
+            strOpaque = "Y";
+        } else {
+            strOpaque = "N";
+        }
         String strRemark = xmlRegion.attributeValue("name");
         try {
             strRemark = URLEncoder.encode(strRemark, "UTF-8");
@@ -380,10 +441,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             
             try {
                 strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
-                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex) VALUES (" +
+                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, bOpaque) VALUES (" +
                     intClipCounter++ + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
                         + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', "
-                        + "\'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ", " + intRegionIndex + ") ;";
+                        + "\'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ", " + intRegionIndex + ""
+                        + ", " + intLayer + ", \'" + strOpaque + "\') ;";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -409,8 +471,14 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         
     }
-    protected void parseSourceData(Element xmlSource, Statement st, File fAudioFolder) {
-        // The ardour file does not contain much information about the source files, need to find out more later from the actual file
+    /**
+     * Parse source data, this information goes in to the SOURCE_INDEX table.
+     * The ardour file does not contain much information about the source files, need to find out more later from the actual files.
+     * 
+     * @param xmlSource     This is an xml Element containing the source file data
+     * @param st            This allows the database to be updated.
+     */
+    protected void parseSourceData(Element xmlSource, Statement st) {
         String strName = xmlSource.attributeValue("name");
         String strFileName = strName;
         String strIndex = xmlSource.attributeValue("id");
