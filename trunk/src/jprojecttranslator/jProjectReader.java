@@ -132,7 +132,12 @@ public class jProjectReader extends Observable {
             i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
-            }            
+            } 
+            strSQL = "DELETE FROM PUBLIC.TRACKS;";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }             
         } catch (java.sql.SQLException e) {
             System.out.println("Error on SQL " + strSQL + e.toString());
             return false;

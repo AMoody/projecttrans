@@ -6,7 +6,7 @@ package jprojecttranslator;
  */
 
 /**
- *
+ * A general purpose handler for BWF files.
  * @author  moodya71
  */
 import java.io.*;
@@ -251,21 +251,32 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         return false;
     }
-
+    /**
+     * Find the details of the source file.
+     * @return A file object representing the source file.
+     */
     public String getSrcFile(){
         return srcFile.toString();
     }
-    
+    /**
+     * Find the details of the destination file.
+     * @return A file object representing the destination file.
+     */
     public String getDestFile(){
         return destFile.toString();
     }
     
     
-    
+    /**
+     * Find the time when the last file read / write occurred.
+     * @return  The date/time in ms since the epoch.
+     */
     public long getLastActivity(){
         return lastActivity;
     }
-    
+    /**
+     * Read a file, fix the offsets and then write it without any edits to the chunks.
+     */
     public void run() {
         readFile(0,0);
         // Now if the errorcode is still 0 we can write the data to the output file unless we're in readOnly mode.
@@ -283,9 +294,22 @@ public class BWFProcessor extends Observable implements Runnable {
             
         
     }
+    /**
+     * This is used to set whether the source file has more than one riff wave file embedded within it.
+     * @param setMultipart Set to true if you ant to start reading the data later than the start of the file.
+     */
     public void setMultipart (boolean setMultipart) {
         bMultipart = setMultipart;
     }
+    /**
+     * Read a source file.
+     * The source file is parsed so all the chunks at the start can be read and or edited.
+     * The file size values are recalculated.
+     * It is possible to read audio data from a file which contains multiple riff wave files stacked end to end.
+     * @param setSourceFileStart    This is an offset in bytes where the start of the riff wave file should be.
+     * @param setSourceFileEnd      This is an offset in bytes where the end of the riff wave file should be.
+     * @return 
+     */
     public boolean readFile(long setSourceFileStart, long setSourceFileEnd) {
         if (bMultipart) {
             lSourceFileStart = setSourceFileStart;
@@ -485,6 +509,13 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         return true;
     }
+    /**
+     * Write an audio file.
+     * The chunks at the start of the file will include any edited or added chunks.
+     * The data chunk and end chunks will simply be copied from the source file.
+     * The sizes written to the file have been recalculated to allow for the new or edited chunks.
+     * @param setDestFile   This is a File object which represents where the file should be written. 
+     */
     public void writeFile(File setDestFile) {
         try {
             destFile = setDestFile;
@@ -622,11 +653,14 @@ public class BWFProcessor extends Observable implements Runnable {
             e.printStackTrace();
         }         
     }
+    /**
+     * This will process the given Byte Buffer and add chunk objects to the given vector.
+     * The values of errorcount and data chunk information will be updated if required.
+     * When this method is called the pointer must be at the start of the ckID
+     * @param inputData     This is a ByteBuffer which should contain some chunks.
+     * @param chunkVector   This is a vector to which the chunks will be added.
+     */
     private void extractChunks(ByteBuffer inputData, Vector chunkVector) {
-        /** This will process the given Byte Buffer and add chunk objects to the given vector.
-         * The values of errorcount and data chunk information will be updated if required.
-         * When this method is called the pointer must be at the start of the ckID
-         */
         while (inputData.hasRemaining()) {
             // We are going to read the next 8 bytes, need to check that there are 8 bytes available.
             if (bDebug) {
@@ -732,6 +766,11 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         return 0;
     }
+    /**
+     * Find the number of samples indicated in the file by calculation.
+     * This simply reads some number from the fmt chunk and carries out a calculation.
+     * @return Return the number of samples in the file.
+     */
     public double getNoOfSamples() {
         // The number of samples in the file should be calculable from
         // No of channels * Sample rate * data chunk size / Byte rate
@@ -760,6 +799,13 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         return 0;
     }
+    /**
+     * This can set the number of samples indicated in the fact chunk.
+     * Wave files do not always have a fact chunk, it's mandatory for MPEG files, and sometimes exists in 32bit float files.
+     * If the file did not have a fact chunk then one is created.
+     * @param setNoOfSamples    Set the number of samples.
+     * @return                  Return true is successful.
+     */
     public boolean setFactSamples(int setNoOfSamples) {
         chunkIterator = startChunks.iterator();
         chunk tempChunk;
@@ -789,6 +835,11 @@ public class BWFProcessor extends Observable implements Runnable {
         startChunks.add(new chunk(tempData));
         return true;
     }
+    /**
+     * Get the indicated duration in seconds from the fmt chunk.
+     * This may not always be correct.
+     * @return Return the indicated duration in seconds.
+     */
     public double getDuration(){
         chunkIterator = startChunks.iterator();
         chunk tempChunk;
@@ -815,10 +866,16 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         return 0;
     }
-    
+    /**
+     * @return Return true if the file has a bext chunk.
+     */
     public boolean hasBextChunk() {
         return bHasBextChunk;
     }
+    /**
+     * Get the title from the bext chunk.
+     * @return Return a string containing the title from the bext chunk.
+     */
     public String getBextTitle() {
         if (!hasBextChunk()) {
             return "";
@@ -847,6 +904,11 @@ public class BWFProcessor extends Observable implements Runnable {
         return "";
         
     }
+    /**
+     * This will set the format tag in the fmt chunk.
+     * @param setFormatTag This is a short contaning the new format tag.
+     * @return         Return true if the title is written successfully.
+     */    
     public boolean setFormatTag(short setFormatTag) {
         chunk tempChunk = null;
         chunkIterator = startChunks.iterator();
@@ -868,6 +930,13 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         
     }
+    /**
+     * This will set the title in the bext chunk.
+     * If the file did not have a bext chunk then a dummy one is added and the title is written to it.
+     * If the given string is too long it will be truncated.* 
+     * @param setTitle This is a string containing the title, it can't be more than 256 characters.
+     * @return         Return true if the title is written successfully.
+     */
     public boolean setBextTitle(String setTitle) {
         chunk tempChunk = null;
         if (!hasBextChunk()) {
@@ -899,6 +968,10 @@ public class BWFProcessor extends Observable implements Runnable {
             return false;
         }
     }
+    /**
+     * Get the originator reference.
+     * @return Return a 32 character string containing the originator reference.
+     */
     public String getBextOriginatorRef() {
         if (!hasBextChunk()) {
             return strOriginatorReference;
@@ -928,6 +1001,13 @@ public class BWFProcessor extends Observable implements Runnable {
         return "";
         
     }
+    /**
+     * This will set the originator reference in the bext chunk.
+     * If the file did not have a bext chunk then a dummy one is added and the originator reference is written to it.
+     * @param setOriginatorReference    This is a 32 character string containing an originator reference.
+     * If the given string is too long it will be truncated.
+     * @return Returns true if the reference is written.
+     */
     public boolean setBextOriginatorRef(String setOriginatorReference) {
         chunk tempChunk = null;
         if (!hasBextChunk()) {
@@ -960,6 +1040,10 @@ public class BWFProcessor extends Observable implements Runnable {
             return false;
         }
     }
+    /**
+     * This finds the bext chunk in the file and returns the time code offset for the start of the recording.
+     * @return Return the timecode offset in samples.
+     */
     public long getBextTimeCodeOffset() {
         if (!hasBextChunk()) {
             return 0;
@@ -980,6 +1064,10 @@ public class BWFProcessor extends Observable implements Runnable {
         return 0;
 
     }
+    /**
+     * Create an empty bext chunk with dummy values.
+     * @return Return a bext chunk.
+     */
     public chunk createBextChunk() {
         chunk tempChunk = null;
         ByteBuffer byteData = ByteBuffer.allocate(1032);

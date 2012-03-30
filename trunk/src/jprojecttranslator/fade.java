@@ -19,6 +19,15 @@ public class fade {
     // The fade length
     private long lLength; 
     private String strFade;
+    /**
+     * Load a FadeIn or FadeOut from an Ardour project file in to the database.
+     * Crossfades in Ardour consist of a FadeIn and FadeOut.
+     * Ardour fades consist of a number of fade levels at certain time offsets in samples.
+     * In the AES31 adl file we need three fade levels at 25% 50% and 75% across the fade.
+     * We will use some numerical analysis from the openforecast package to find suitable values.
+     * @param xmlFade   This is an xml Element containing fade values. The FadeIn or FadeOut element should be part of a crossfade.
+     * @return          Returns true if the fade was parsed successfully.
+     */
     public boolean loadArdourFade(Element xmlFade) {
         lLength = 0;
         long lTempLength = 0;
@@ -100,6 +109,14 @@ public class fade {
         return true;
         
     }
+    /**
+     * Load a fade from an Ardour project file in to the database.
+     * Ardour fades consist of a number of fade levels at certain time offsets in samples.
+     * In the AES31 adl file we need three fade levels at 25% 50% and 75% across the fade.
+     * We will use some numerical analysis from the openforecast package to find suitable values.
+     * @param xmlSource This is an xml Element containing fade values. The FadeIn or FadeOut element should be part of a region.
+     * @return          Returns true if the fade was parsed successfully.
+     */
     public boolean loadArdourElement(Element xmlSource) {
         lLength = 0;
         long lTempLength = 0;
@@ -186,9 +203,15 @@ public class fade {
         return true;
         
     }
+    /**
+     * @return Returns the length of the fade in samples.
+     */
     public long getLength() {
         return lLength;
     }
+    /**
+     * @return Returns a string in ADL format describing the fade shape.
+     */
     public String getFade() {
         return strFade;
     }

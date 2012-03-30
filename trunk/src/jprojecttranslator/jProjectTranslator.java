@@ -1,9 +1,3 @@
-/*
- * jProjectTranslator is used to translate audio editing projects from one format to another.
- * Internally the metadata is stored as AES31
- * Three import formats are supported, AES31, Ardour and VCS Startrack
- * Two output formats are supported, AES31 and Ardour
- */
 package jprojecttranslator;
 import java.io.*;
 import java.sql.Connection;
@@ -34,7 +28,10 @@ import java.lang.Math.*;
 import javax.swing.JOptionPane;
 import javax.swing.table.AbstractTableModel;
 /**
- *
+ * Project Translator is used to convert audio projects from various formats to AES31 (adl) format.
+ * The source file is read in to a database which closely matches the structure of an AES31 adl file.
+ * The projectreader and projectwriter classes can be extended to support additional formats.
+ * This was written initially to convert Ardour projects to AES31 but an importer for VCS Startrack was added for the BBC.
  * @author arth
  */
 public class jProjectTranslator extends javax.swing.JFrame implements Observer {
@@ -68,6 +65,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     // This stores the last intMessageQueueLength messages
     private List listRecentActivityStrings = new ArrayList(intMessageQueueLength);
     private soundFilesTableModel ourTableModel = new soundFilesTableModel();
+    private static String strLastFileOpenFilter = "";
     /**
      * Creates new form jProjectTranslator
      */
@@ -410,6 +408,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         usersIniFile.WriteInteger("General", "XfadeLength", intXfadeLength);
         usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dFrameRate));
         usersIniFile.WriteString("General", "CurrentPath", fPath.toString());
+        usersIniFile.WriteString("General", "LastFileOpenFilter", strLastFileOpenFilter);
         usersIniFile.UpdateFile();
         System.exit(0);        
     }
@@ -420,10 +419,19 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         fc.setSelectedFile(new File(fPath,"Project"));
         Iterator itr = listReaders.iterator(); 
         jProjectReader tempProjectReader;
+        javax.swing.filechooser.FileFilter tempFileFilter = null;
         while(itr.hasNext()) {
-            // fc.addChoosableFileFilter( ((javax.swing.filechooser.FileFilter)(itr.next())) );
             tempProjectReader = (jProjectReader)(itr.next());
-            fc.addChoosableFileFilter( tempProjectReader.getFileFilter() );
+//            fc.addChoosableFileFilter( tempProjectReader.getFileFilter() );
+            if (tempProjectReader.getFileFilter().getDescription().equalsIgnoreCase(strLastFileOpenFilter)) {
+                tempFileFilter = tempProjectReader.getFileFilter();
+            } else {
+                fc.addChoosableFileFilter( tempProjectReader.getFileFilter() );
+            }
+            
+        }
+        if (tempFileFilter instanceof javax.swing.filechooser.FileFilter) {
+            fc.setFileFilter(tempFileFilter);
         }
         if (!(fc.showOpenDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION)) {
             return;
@@ -432,7 +440,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             fPath = fc.getSelectedFile().getParentFile();
         }
         System.out.println("The chosen file was " + fc.getSelectedFile());
-        System.out.println("The chosen file filter was " + fc.getFileFilter());
+        strLastFileOpenFilter = fc.getFileFilter().getDescription();
+        System.out.println("The chosen file filter was " + strLastFileOpenFilter);
         itr = listReaders.iterator();
         while(itr.hasNext()) {
             tempProjectReader = (jProjectReader)(itr.next());
@@ -568,6 +577,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         dFrameRate = Double.parseDouble(usersIniFile.ReadString("General","FrameRate","25"));
         intXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",9600);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
+        strLastFileOpenFilter = usersIniFile.ReadString("General","LastFileOpenFilter","");
+        
         if (intHTTPPort > 0) {
             try {
                 HTTPD oWebServer = new HTTPD(intHTTPPort);

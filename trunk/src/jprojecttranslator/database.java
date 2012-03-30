@@ -70,15 +70,18 @@ public class database {
              * strRemark        This is the name of the EDL entry
              * strInFade        This describes the in fade on the EDL, e.g. LIN _ _ _ or CURVE -2.70 -4.70 -13.23 etc
              * intInFade        This is the duration of the in fade in samples
-             * strOutFade        This describes the out fade on the EDL, e.g. LIN _ _ _ or CURVE -2.70 -4.70 -13.23 etc
-             * intOutFade        This is the duration of the out fade in samples
+             * strOutFade       This describes the out fade on the EDL, e.g. LIN _ _ _ or CURVE -2.70 -4.70 -13.23 etc
+             * intOutFade       This is the duration of the out fade in samples
              * intRegionIndex   This is used by Ardour, every object has an index number which we need to keep
+             * intLayer         This is used by Ardour, regions on an edl track can lie above or below each other
+             * bOpaque          This is used by Ardour, if a region is opaque then regions underneath can not be heard unless the overlap is a crossfade
              * 
              */
             strSQL = "CREATE TABLE PUBLIC.EVENT_LIST (intIndex INTEGER NOT NULL," +
                     "strType CHAR(16), strRef CHAR(4), intSourceIndex INTEGER NOT NULL," +
                     "strTrackMap CHAR(16), intSourceIn BIGINT NOT NULL, intDestIn BIGINT NOT NULL, intDestOut BIGINT NOT NULL," +
-                    "strRemark CHAR(512), strInFade CHAR(30), intInFade BIGINT,  strOutFade CHAR(30), intOutFade BIGINT, intRegionIndex INTEGER, " +
+                    "strRemark CHAR(512), strInFade CHAR(30), intInFade BIGINT,  strOutFade CHAR(30), intOutFade BIGINT, intRegionIndex INTEGER, "
+                    + "intLayer INTEGER, bOpaque CHAR(1), " +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
