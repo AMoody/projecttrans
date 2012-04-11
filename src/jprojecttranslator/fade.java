@@ -100,6 +100,9 @@ public class fade {
         while (i.hasNext()) {
             dp = (DataPoint)i.next();
             dLevel = dp.getDependentValue();
+            if (dLevel < 0) {
+                return false;
+            }
             dLevel = 20*Math.log10(dLevel);
             strLevel = String.format("%.2f", dLevel);
             strFade = strFade + strLevel + "  ";
@@ -194,6 +197,9 @@ public class fade {
         while (i.hasNext()) {
             dp = (DataPoint)i.next();
             dLevel = dp.getDependentValue();
+            if (dLevel < 0) {
+                return false;
+            }
             dLevel = 20*Math.log10(dLevel);
             strLevel = String.format("%.2f", dLevel);
             strFade = strFade + strLevel + "  ";

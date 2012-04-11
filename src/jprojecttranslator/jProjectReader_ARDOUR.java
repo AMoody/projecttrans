@@ -50,6 +50,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      */
     protected boolean processProject() {
         dtsCreated = new DateTime(fSourceFile.lastModified(), DateTimeZone.getDefault());
+        intSoundFilesLoaded = 0;
         if (!loadXMLData(fSourceFile)) {
             return false;
         }
@@ -114,6 +115,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 tempBWFProc = new BWFProcessor();
                 tempBWFProc.setSrcFile(fLocalSourceFile);
                 tempBWFProc.setMultipart(false);
+                if (fLocalSourceFile.exists()) {
+                    System.out.println("Source file " + fLocalSourceFile + " found");
+                } else {
+                    System.out.println("Source file " + fLocalSourceFile + " not found");
+                }
                 if (fLocalSourceFile.exists() && fLocalSourceFile.canRead() && tempBWFProc.readFile(0,fLocalSourceFile.length())) {
                     lIndicatedFileSize = tempBWFProc.getIndicatedFileSize();
                     lSampleRate = tempBWFProc.getSampleRate();
@@ -241,7 +247,14 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             parsePlaylistData(xmlPlaylist, st);
 
         }
-        
+        // Fix overlapping opaque tracks from ardour.
+        int intCounter = 0;
+        int intPrunedTracks = 0;
+        do {
+            intPrunedTracks = pruneLowerTracks(st);
+            intCounter++;
+            
+        } while (intPrunedTracks > 0 && intCounter < 25000);
         return true;
     }
     /**
@@ -294,7 +307,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             Element xmlRegion;
             for (Iterator i = xmlPlaylist.elementIterator("Region");i.hasNext();) {
                 xmlRegion = (Element)i.next();
-                parseRegionData(xmlRegion, intChannelOffset, st);
+                parseRegionData(xmlRegion, intChannelOffset, st, intPlaylistIndex);
 
             }
             Element xmlCrossfade;
@@ -367,7 +380,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * @param intMapOffset  Each audio track is offset by this number in the database
      * @param st            This allows the database to be updated.
      */
-    protected void parseRegionData(Element xmlRegion, int intMapOffset, Statement st) {
+    protected void parseRegionData(Element xmlRegion, int intMapOffset, Statement st, int intTrackIndex) {
         /** Each region can consist of one or more channels. 
          */
         int intRegionIndex = Integer.parseInt(xmlRegion.attributeValue("id"));
@@ -441,11 +454,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             
             try {
                 strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
-                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, bOpaque) VALUES (" +
+                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, intTrackIndex, bOpaque) VALUES (" +
                     intClipCounter++ + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
                         + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', "
                         + "\'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ", " + intRegionIndex + ""
-                        + ", " + intLayer + ", \'" + strOpaque + "\') ;";
+                        + ", " + intLayer + ", " + intTrackIndex + ", \'" + strOpaque + "\') ;";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -507,5 +520,96 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             System.out.println("Error on SQL " + strSQL + e.toString());
         }
         
+    }
+    protected int pruneLowerTracks(Statement st) {
+        strSQL = "SELECT intIndex, intDestIn, intDestOut, intLayer, intTrackIndex FROM PUBLIC.EVENT_LIST WHERE bOpaque = \'Y\' ORDER BY intLayer DESC;";
+        int intPrunedTracks, intIndex, intDestIn, intDestOut, intLayer, intTrackIndex;
+        intPrunedTracks = 0;
+        try {
+            ResultSet rs = st.executeQuery(strSQL);
+            while (rs.next()) {
+                // Look for any underlying regions
+                intIndex = rs.getInt(1);
+                intDestIn = rs.getInt(2);
+                intDestOut = rs.getInt(3);
+                intLayer = rs.getInt(4);
+                intTrackIndex = rs.getInt(5);
+                strSQL = "SELECT COUNT(*) FROM PUBLIC.EVENT_LIST WHERE "
+                        + "intDestIn <= " + intDestIn + "AND "
+                        + "intDestOut >= " + intDestOut + "AND "
+                        + "intLayer < " + intLayer + "AND "
+                        + "intTrackIndex = " + intTrackIndex + ";";
+                ResultSet rs2 = st.executeQuery(strSQL);
+                rs2.next();
+                if (rs2.getInt(1) > 0) {
+                    intPrunedTracks++;
+                    System.out.println("" + rs2.getInt(1) + " overlapping regions found under region " + intIndex );
+                    strSQL = "SELECT intIndex FROM PUBLIC.EVENT_LIST WHERE "
+                        + "intDestIn <= " + intDestIn + "AND "
+                        + "intDestOut >= " + intDestOut + "AND "
+                        + "intLayer < " + intLayer + "AND "
+                        + "intTrackIndex = " + intTrackIndex + ";";
+                    rs2 = st.executeQuery(strSQL);
+                    while (rs2.next()) {
+                        splitRegion(rs2.getInt(1), intDestIn, intDestOut, st);
+                    }
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        }
+        return intPrunedTracks;
+    }
+    protected void splitRegion(int intIndex, int intDestIn, int intDestOut, Statement st) {
+        int i, intLastIndex;
+        try {
+            // We need to duplicate the region first, the copy will be the end region.
+            strSQL = "SELECT MAX(intIndex) FROM PUBLIC.EVENT_LIST;";
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();
+            intLastIndex = rs.getInt(1) + 1;
+            strSQL =  "CREATE TABLE PUBLIC.EVENT_LIST2 AS (SELECT * FROM PUBLIC.EVENT_LIST WHERE intIndex = " + intIndex + ") WITH DATA;";
+//            System.out.println("SQL is " + strSQL);
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            // Truncate the newly created end region and give in a valid index number
+            strSQL = "UPDATE PUBLIC.EVENT_LIST2 SET intIndex = " + intLastIndex + ", intDestIn = " + intDestOut + ", intInFade = 0, strInFade = \'\';";
+//            System.out.println("SQL is " + strSQL);
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            // Now to truncate the start region.
+            strSQL = "UPDATE PUBLIC.EVENT_LIST SET intDestOut = " + intDestIn + ", intOutFade = 0, strOutFade = \'\' WHERE intIndex = " + intIndex + ";";
+//            System.out.println("SQL is " + strSQL);
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            strSQL = "INSERT INTO PUBLIC.EVENT_LIST SELECT * FROM PUBLIC.EVENT_LIST2;";
+//            System.out.println("SQL is " + strSQL);
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            // Delete zero length regions
+            strSQL = "DELETE FROM PUBLIC.EVENT_LIST WHERE intDestIn = intDestOut;";
+//            System.out.println("SQL is " + strSQL);
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            strSQL = "DROP TABLE PUBLIC.EVENT_LIST2;";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        }
+        
+
     }
 }
