@@ -47,8 +47,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     /** This is the ini file which stores the users own settings in their home folder.*/
     static JIniFile usersIniFile;
     static database ourDatabase;
-    private static List listReaders = new ArrayList();
-    private static List listWriters = new ArrayList();
+    protected static List listReaders = new ArrayList();
+    protected static List listWriters = new ArrayList();
     private static List listBWFProcessors = new ArrayList();
     private static javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
     public static int intSampleRate = 48000;
@@ -66,6 +66,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     private List listRecentActivityStrings = new ArrayList(intMessageQueueLength);
     private soundFilesTableModel ourTableModel = new soundFilesTableModel();
     private static String strLastFileOpenFilter = "";
+    final static ResourceBundle rbProject = ResourceBundle.getBundle("jprojecttranslator.version"); 
+    protected static String strBuild;
+    protected static final String strVersion = "0.1";
     /**
      * Creates new form jProjectTranslator
      */
@@ -193,6 +196,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenuItem4 = new javax.swing.JMenuItem();
         jMenuItem3 = new javax.swing.JMenuItem();
         jMenu2 = new javax.swing.JMenu();
+        jMenuItem5 = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Project Translator");
@@ -346,6 +350,15 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenuBar1.add(jMenu1);
 
         jMenu2.setText("Help");
+
+        jMenuItem5.setText("About");
+        jMenuItem5.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menuAbout(evt);
+            }
+        });
+        jMenu2.add(jMenuItem5);
+
         jMenuBar1.add(jMenu2);
 
         setJMenuBar(jMenuBar1);
@@ -522,6 +535,12 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         exitForm();
     }//GEN-LAST:event_formWindowClosing
 
+    private void menuAbout(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuAbout
+        jAbout dlgAbout = new jAbout(this,true);
+        dlgAbout.setLocationRelativeTo(null);
+        dlgAbout.setVisible(true);
+    }//GEN-LAST:event_menuAbout
+
     /**
      @param args A filename reference to be loaded automatically, the file type will be guessed from the extension
      */
@@ -568,7 +587,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
          */
         ourDatabase = new database();
         
-        
+        strBuild = rbProject.getString("application.buildnumber");
+        System.out.println("Build number is " + strBuild);
         /* Create a web server for debugging if required.
          * This allows the database table to be viewed in a web browser
          */
@@ -595,7 +615,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         // listReaders.add(new jProjectReader_AES31());
         listWriters.add(new jProjectWriter_AES31());
         // listWriters.add(new jProjectWriter_ARDOUR());
-      
+        
         
         /*
          * Create and display the form
@@ -744,6 +764,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     private javax.swing.JMenuItem jMenuItem2;
     private javax.swing.JMenuItem jMenuItem3;
     private javax.swing.JMenuItem jMenuItem4;
+    private javax.swing.JMenuItem jMenuItem5;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JProgressBar jProgressBar1;
     private javax.swing.JScrollPane jScrollPane1;
