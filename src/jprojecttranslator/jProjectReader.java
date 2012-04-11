@@ -144,7 +144,13 @@ public class jProjectReader extends Observable {
         }
         return true;
     }
-    
+    /**
+     * This is used to get text information which is shown in the Help/About dialogue box.
+     * @return The information text.
+     */
+    public String getInfoText() {
+        return "";
+    }
 
 
 }

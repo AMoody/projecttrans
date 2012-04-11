@@ -612,4 +612,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         
 
     }
+        public String getInfoText() {
+        return "<b>Ardour</b><br>"
+                + "This importer can read .ardour files which contain the EDL, it should then be able to find the associated audio. "
+                + "The default audio file format is 32 bit float which is not always supported by other audio editors so you "
+                + "should consider changing this in your ardour project. "
+                + "Regions lying under other opaque regions are split into independent event list entries in the AES31 project.<br>";
+    }
 }
