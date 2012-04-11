@@ -27,19 +27,19 @@ public class database {
             conn = DriverManager.getConnection("jdbc:hsqldb:mem:internal","sa","");
             st = conn.createStatement();
             ResultSet rs = null;
-            strSQL = "SET LOGSIZE 5;";
-            int i = st.executeUpdate(strSQL);
-            if (i == -1) {
-                System.out.println("Error on SQL " + strSQL);
-            }
+//            strSQL = "SET LOGSIZE 5;";
+//            int i = st.executeUpdate(strSQL);
+//            if (i == -1) {
+//                System.out.println("Error on SQL " + strSQL);
+//            }
             /** Create the TRACK table.
              * This is not used directly by the ADL but some project formats do include information about
              * the tracks in the EDL
              */
             strSQL = "CREATE TABLE PUBLIC.TRACKS (intIndex INTEGER NOT NULL," +
-                    " strName CHAR(256), intChannels INTEGER, intChannelOffset INTEGER, strChannelMap CHAR(9)," +
+                    " strName VARCHAR(256), intChannels INTEGER, intChannelOffset INTEGER, strChannelMap VARCHAR(9)," +
                     "PRIMARY KEY (intIndex));";
-            i = st.executeUpdate(strSQL);
+            int i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
             }
@@ -48,9 +48,9 @@ public class database {
              * This information is used to generate the SOURCE_INDEX section of the ADL file.
              */
             strSQL = "CREATE TABLE PUBLIC.SOURCE_INDEX (intIndex INTEGER NOT NULL," +
-                    "strType CHAR(4), strURI CHAR(256), strUMID CHAR(64), intLength BIGINT NOT NULL, strName CHAR(256),"
-                    + " intFileOffset BIGINT NOT NULL, intTimeCodeOffset BIGINT NOT NULL, strSourceFile CHAR(256),"
-                    + " strDestFileName CHAR(256), intCopied BIGINT DEFAULT 0, intIndicatedFileSize BIGINT DEFAULT 0,"
+                    "strType VARCHAR(4), strURI VARCHAR(256), strUMID VARCHAR(64), intLength BIGINT NOT NULL, strName VARCHAR(256),"
+                    + " intFileOffset BIGINT NOT NULL, intTimeCodeOffset BIGINT NOT NULL, strSourceFile VARCHAR(256),"
+                    + " strDestFileName VARCHAR(256), intCopied BIGINT DEFAULT 0, intIndicatedFileSize BIGINT DEFAULT 0,"
                     + " intSampleRate BIGINT DEFAULT 0, dDuration DOUBLE DEFAULT 0, intVCSInProject INT, intFileSize BIGINT," +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
@@ -74,14 +74,15 @@ public class database {
              * intOutFade       This is the duration of the out fade in samples
              * intRegionIndex   This is used by Ardour, every object has an index number which we need to keep
              * intLayer         This is used by Ardour, regions on an edl track can lie above or below each other
+             * intTrackIndex    This is used by Ardour, these are  edl tracks
              * bOpaque          This is used by Ardour, if a region is opaque then regions underneath can not be heard unless the overlap is a crossfade
              * 
              */
             strSQL = "CREATE TABLE PUBLIC.EVENT_LIST (intIndex INTEGER NOT NULL," +
-                    "strType CHAR(16), strRef CHAR(4), intSourceIndex INTEGER NOT NULL," +
-                    "strTrackMap CHAR(16), intSourceIn BIGINT NOT NULL, intDestIn BIGINT NOT NULL, intDestOut BIGINT NOT NULL," +
-                    "strRemark CHAR(512), strInFade CHAR(30), intInFade BIGINT,  strOutFade CHAR(30), intOutFade BIGINT, intRegionIndex INTEGER, "
-                    + "intLayer INTEGER, bOpaque CHAR(1), " +
+                    "strType VARCHAR(16), strRef VARCHAR(4), intSourceIndex INTEGER NOT NULL," +
+                    "strTrackMap VARCHAR(16), intSourceIn BIGINT NOT NULL, intDestIn BIGINT NOT NULL, intDestOut BIGINT NOT NULL," +
+                    "strRemark VARCHAR(512), strInFade VARCHAR(30), intInFade BIGINT,  strOutFade VARCHAR(30), intOutFade BIGINT, intRegionIndex INTEGER, "
+                    + "intLayer INTEGER, intTrackIndex INTEGER, bOpaque VARCHAR(1), " +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
@@ -90,7 +91,7 @@ public class database {
             /** Create the FADER_LIST table
              * This contains information about the gain automation
              */
-            strSQL = "CREATE TABLE PUBLIC.FADER_LIST (intTrack INTEGER NOT NULL, intTime BIGINT NOT NULL, strLevel CHAR(16)" +
+            strSQL = "CREATE TABLE PUBLIC.FADER_LIST (intTrack INTEGER NOT NULL, intTime BIGINT NOT NULL, strLevel VARCHAR(16)" +
                     ");";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
@@ -98,14 +99,14 @@ public class database {
             }
             // Create the PROJECT table
             strSQL = "CREATE TABLE PUBLIC.PROJECT (intIndex INTEGER NOT NULL," +
-                    "strTitle CHAR(256), strNotes CHAR(512), dtsCreated DATETIME, strOriginator CHAR(512), strClientData CHAR(512), " +
+                    "strTitle VARCHAR(256), strNotes VARCHAR(512), dtsCreated DATETIME, strOriginator VARCHAR(512), strClientData VARCHAR(512), " +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
             }
             // Create the VERSION table
-            strSQL = "CREATE TABLE PUBLIC.VERSION (strID CHAR(64), strUID CHAR(64), strADLVersion CHAR(64), strCreator CHAR(64), strCreatorVersion CHAR(64) " +
+            strSQL = "CREATE TABLE PUBLIC.VERSION (strID VARCHAR(64), strUID VARCHAR(64), strADLVersion VARCHAR(64), strCreator VARCHAR(64), strCreatorVersion VARCHAR(64) " +
                     ");";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
@@ -113,7 +114,7 @@ public class database {
             }
             // Create the SYSTEM table
             strSQL = "CREATE TABLE PUBLIC.SYSTEM (intIndex INTEGER NOT NULL," +
-                    "intSourceOffset INTEGER NOT NULL, intBitDepth INTEGER NOT NULL, strAudioCodec CHAR(64), intXFadeLength INTEGER NOT NULL, strGain CHAR(64) , " +
+                    "intSourceOffset INTEGER NOT NULL, intBitDepth INTEGER NOT NULL, strAudioCodec VARCHAR(64), intXFadeLength INTEGER NOT NULL, strGain VARCHAR(64) , " +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {

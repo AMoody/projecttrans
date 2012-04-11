@@ -856,7 +856,7 @@ public class BWFProcessor extends Observable implements Runnable {
                 shortAudioFormat = byteData.getShort();
                 byteData.position(16);
                 intByteRate = byteData.getInt();
-                if (shortAudioFormat == 1 || shortAudioFormat == 0x0055) {
+                if (shortAudioFormat == 1 || shortAudioFormat == 3 || shortAudioFormat == 0x0055) {
                     return dataChunkSize/intByteRate;
                 } else {
                     // Don't know how to calculate duration

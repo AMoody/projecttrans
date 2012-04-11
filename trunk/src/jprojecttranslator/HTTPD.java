@@ -106,6 +106,7 @@ public class HTTPD extends NanoHTTPD {
                     "<ul>" +
                     "<li><a href=\"debug.html?Table=SOURCE_INDEX\" name=\"SOURCE_INDEX\">SOURCE_INDEX</a></li>\n" +
                     "<li><a href=\"debug.html?Table=EVENT_LIST\" name=\"EVENT_LIST\">EVENT_LIST</a></li>\n" +
+                    "<li><a href=\"debug.html?Table=EVENT_LIST2\" name=\"EVENT_LIST2\">EVENT_LIST2</a></li>\n" +
                     "<li><a href=\"debug.html?Table=FADER_LIST\" name=\"FADER_LIST\">FADER_LIST</a></li>\n" +
                     "<li><a href=\"debug.html?Table=PROJECT\" name=\"PROJECT\">PROJECT</a></li>\n" +
                     "<li><a href=\"debug.html?Table=VERSION\" name=\"VERSION\">VERSION</a></li>\n" +
