@@ -197,6 +197,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenuItem3 = new javax.swing.JMenuItem();
         jMenu2 = new javax.swing.JMenu();
         jMenuItem5 = new javax.swing.JMenuItem();
+        jMenuItem6 = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Project Translator");
@@ -358,6 +359,14 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             }
         });
         jMenu2.add(jMenuItem5);
+
+        jMenuItem6.setText("Licence");
+        jMenuItem6.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                menuLicence(evt);
+            }
+        });
+        jMenu2.add(jMenuItem6);
 
         jMenuBar1.add(jMenu2);
 
@@ -536,11 +545,46 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     }//GEN-LAST:event_formWindowClosing
 
     private void menuAbout(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuAbout
-        jAbout dlgAbout = new jAbout(this,true);
+        jHelp dlgAbout = new jHelp(this,true);
+        dlgAbout.loadAboutText();
         dlgAbout.setLocationRelativeTo(null);
         dlgAbout.setVisible(true);
     }//GEN-LAST:event_menuAbout
 
+    private void menuLicence(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuLicence
+        jHelp dlgLicence = new jHelp(this,true);
+        dlgLicence.setWindowTitle("Licence");
+        dlgLicence.setText("<html><h2>Project Translator</h2><br>"
+                + "A program to translate audio editing projects from "
+                + "one format to another. "
+                + "Copyright (C) 2011  Arthur Moody"
+                + "<br><br>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by "
+                + "the Free Software Foundation, either version 3 of the License, or (at your option) any later version."
+                + "<br><br>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of "
+                + "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details."
+                + "<br><br>You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>."
+                + "<br><br>Project Translator uses third-party libraries. "
+                + "<br>These are their licensing terms."
+                + "<br><br><b>HSQLDB</b>"
+                + "<br>Copyright (c) 2001-2010, The HSQL Development Group"
+                + "<br>All rights reserved."
+                + "<br>http://hsqldb.org/web/hsqlLicense.html"
+                + "<br><br><b>OpenForecast</b>"
+                + "<br>GNU Library or Lesser General Public License version 2.0 (LGPLv2)"
+                + "<br>http://sourceforge.net/projects/openforecast"
+                + "<br><br><b>dom4j</b>"
+                + "<br>BSD style license"
+                + "<br>http://dom4j.sourceforge.net/dom4j-1.6.1/license.html"
+                + "<br><br><b>joda-time</b>"
+                + "<br>Apache licence"
+                + "<br>http://joda-time.sourceforge.net/license.html"
+                + "<br><br><b>NanoHTTPD</b>"
+                + "<br>Modified BSD licence"
+                + "<br>Copyright © 2001,2005-2012 Jarno Elonen <elonen@iki.fi> and Copyright © 2010 Konstantinos Togias <info@ktogias.gr>"
+                + "<br>http://elonen.iki.fi/code/nanohttpd/index.html</html>");
+        dlgLicence.setLocationRelativeTo(null);
+        dlgLicence.setVisible(true);
+    }//GEN-LAST:event_menuLicence
     /**
      @param args A filename reference to be loaded automatically, the file type will be guessed from the extension
      */
@@ -765,6 +809,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     private javax.swing.JMenuItem jMenuItem3;
     private javax.swing.JMenuItem jMenuItem4;
     private javax.swing.JMenuItem jMenuItem5;
+    private javax.swing.JMenuItem jMenuItem6;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JProgressBar jProgressBar1;
     private javax.swing.JScrollPane jScrollPane1;
