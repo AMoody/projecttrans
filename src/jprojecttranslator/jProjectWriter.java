@@ -93,5 +93,12 @@ public class jProjectWriter extends Observable implements Observer{
     protected boolean processProject() {
         System.out.println("Writer thread running");
         return true;
-    }    
+    } 
+        /**
+     * This is used to get text information which is shown in the Help/About dialogue box.
+     * @return The information text.
+     */
+    public String getInfoText() {
+        return "";
+    }
 }
