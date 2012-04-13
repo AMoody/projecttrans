@@ -557,16 +557,16 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         dlgLicence.setText("<html><h2>Project Translator</h2><br>"
                 + "A program to translate audio editing projects from "
                 + "one format to another. "
-                + "Copyright (C) 2011  Arthur Moody"
+                + "<br>Copyright © 2011-2012  Arthur Moody"
                 + "<br><br>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by "
                 + "the Free Software Foundation, either version 3 of the License, or (at your option) any later version."
                 + "<br><br>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of "
                 + "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details."
-                + "<br><br>You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>."
+                + "<br><br>You should have received a copy of the GNU General Public License along with this program.  If not, see http://www.gnu.org/licenses/."
                 + "<br><br>Project Translator uses third-party libraries. "
                 + "<br>These are their licensing terms."
                 + "<br><br><b>HSQLDB</b>"
-                + "<br>Copyright (c) 2001-2010, The HSQL Development Group"
+                + "<br>Copyright © 2001-2010, The HSQL Development Group"
                 + "<br>All rights reserved."
                 + "<br>http://hsqldb.org/web/hsqlLicense.html"
                 + "<br><br><b>OpenForecast</b>"
@@ -581,7 +581,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 + "<br><br><b>NanoHTTPD</b>"
                 + "<br>Modified BSD licence"
                 + "<br>Copyright © 2001,2005-2012 Jarno Elonen <elonen@iki.fi> and Copyright © 2010 Konstantinos Togias <info@ktogias.gr>"
-                + "<br>http://elonen.iki.fi/code/nanohttpd/index.html</html>");
+                + "<br>http://elonen.iki.fi/code/nanohttpd/index.html"
+                + "<br><br><b>Drop frame timecode calculations.</b>"
+                + "<br>Code by David Heidelberger (http://www.davidheidelberger.com), adapted from Andrew Duncan's work (http://www.andrewduncan.ws).</html>");
         dlgLicence.setLocationRelativeTo(null);
         dlgLicence.setVisible(true);
     }//GEN-LAST:event_menuLicence
@@ -639,7 +641,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         int intHTTPPort = usersIniFile.ReadInteger("General","intHTTPPort",0);
         intSampleRate = usersIniFile.ReadInteger("General","SampleRate",48000);
         dFrameRate = Double.parseDouble(usersIniFile.ReadString("General","FrameRate","25"));
-        intXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",9600);
+        intXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",960);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         strLastFileOpenFilter = usersIniFile.ReadString("General","LastFileOpenFilter","");
         

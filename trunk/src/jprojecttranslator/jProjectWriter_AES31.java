@@ -377,4 +377,15 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         }        
         return true;
     }
+        /**
+     * This is used to get text information which is shown in the Help/About dialogue box.
+     * @return The information text.
+     */
+    public String getInfoText() {
+        return "<b>AES31</b><br>"
+                + "This exporter will write an .adl (Audio Decision List) file which contains the EDL.<br>"
+                + "If the required audio files have been found these will also be copied to the same folder as the .adl file.<br>"
+                + "If the audio files are not BWAVs then a bext chunk will be added, this is mandatory for an AES31 project.<br>"
+                + "<br>";
+    }
 }

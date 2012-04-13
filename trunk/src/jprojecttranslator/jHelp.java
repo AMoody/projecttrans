@@ -44,12 +44,21 @@ public class jHelp extends javax.swing.JDialog {
             tempProjectReader = (jProjectReader)(itr.next());
             strReaders = strReaders + tempProjectReader.getInfoText();
         }
+        String strWriters = "";
+        itr = jProjectTranslator.listWriters.iterator();
+        jProjectWriter tempProjectWriter;
+        while(itr.hasNext()) {
+            tempProjectWriter = (jProjectWriter)(itr.next());
+            strWriters = strWriters + tempProjectWriter.getInfoText();
+        }
         jEditorPane1.setContentType( "text/html" );
         jEditorPane1.setText("<html><h1>Project Translator</h1><br>"
                 + "Project Translator is an application for converting audio projects from one format to another.<br>"
                 + "This is version " + jProjectTranslator.strVersion + " build number " + jProjectTranslator.strBuild + "<br><hr>"
                 + "<h1>Importers</h1><br>"
-                + "" + strReaders + "</html>");
+                + "" + strReaders + "<br>"
+                + "<h1>Exporters</h1><br>"
+                + "" + strWriters + "</html>");
     }
     
     public void setWindowTitle(String strTitle){
