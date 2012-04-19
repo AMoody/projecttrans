@@ -157,7 +157,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             while (rs.next()) {
                 strIndex = String.format("%04d", rs.getInt(1));
                 strURI = URLDecoder.decode(rs.getString(2), "UTF-8");
-                strUMID = rs.getString(3);
+                strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
                 strTimeCodeOffset = getADLTimeString(rs.getLong(6), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
                 strName = URLDecoder.decode(rs.getString(5), "UTF-8");
                 strADLText = strADLText + str8Space + "(Index) " + strIndex + "\n";
