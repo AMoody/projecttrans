@@ -194,10 +194,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         String strNotes = "";
         String strAudioSubFolder = "interchange/" + strTitle + "/audiofiles";
         String strCreated = fmtSQL.withZone(DateTimeZone.UTC).print(dtsCreated);
-        int intSampleRate = Integer.parseInt(strSampleRate);
-        if (jProjectTranslator.intSampleRate != intSampleRate) {
-            oProjectTranslator.writeStringToPanel("This project is not at your preferred sample rate so it can not be opened, the project rate is " + intSampleRate);
-            return false;
+        jProjectTranslator.intProjectSampleRate = Integer.parseInt(strSampleRate);
+        if (jProjectTranslator.intPreferredSampleRate != jProjectTranslator.intProjectSampleRate) {
+            sampleRateChange();
+//            oProjectTranslator.writeStringToPanel("This project is not at your preferred sample rate so it can not be opened, the project rate is " + jProjectTranslator.intProjectSampleRate);
+//            return false;
         }
         try {
             strNotes = URLEncoder.encode(strNotes, "UTF-8");

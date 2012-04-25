@@ -8,6 +8,7 @@ import java.util.*;
 import java.io.*;
 import java.sql.Connection;
 import java.sql.Statement;
+import javax.swing.JOptionPane;
 import javax.swing.filechooser.*;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -78,6 +79,10 @@ public class jProjectReader extends Observable {
             System.out.println("Error on SQL " + e.toString());
             return false;
         }
+        // Reset these values back to the preferred values.
+        jProjectTranslator.intProjectSampleRate = jProjectTranslator.intPreferredSampleRate;
+        jProjectTranslator.dProjectFrameRate = jProjectTranslator.dPreferredFrameRate;
+        jProjectTranslator.intProjectXfadeLength = jProjectTranslator.intPreferredXfadeLength;
         clearDatabase();
         lBWFProcessors = setBWFProcessors;
         lBWFProcessors.clear();
@@ -151,6 +156,25 @@ public class jProjectReader extends Observable {
     public String getInfoText() {
         return "";
     }
-
+    public void sampleRateChange() {
+        String msg = "The project which is loading is at sample rate " + jProjectTranslator.intProjectSampleRate + " but your preferred rate is "
+                + jProjectTranslator.intPreferredSampleRate + "!\nDo you want to change your preferred sample rate?";  
+        msg = java.text.MessageFormat.format( msg, new Object[] { msg } );  
+        String title = "Warning";  
+        int option = JOptionPane.showConfirmDialog( jProjectTranslator.ourWindow, msg, title, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE );  
+        if ( option == JOptionPane.YES_OPTION ) {  
+             jProjectTranslator.intPreferredSampleRate = jProjectTranslator.intProjectSampleRate;
+        }
+    }
+    public void frameRateChange() {
+        String msg = "The project which is loading is at frame rate " + jProjectTranslator.dProjectFrameRate + " but your preferred rate is "
+                + jProjectTranslator.dPreferredFrameRate + "!\nDo you want to change your preferred frame rate?";  
+        msg = java.text.MessageFormat.format( msg, new Object[] { msg } );  
+        String title = "Warning";  
+        int option = JOptionPane.showConfirmDialog( jProjectTranslator.ourWindow, msg, title, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE );  
+        if ( option == JOptionPane.YES_OPTION ) {  
+             jProjectTranslator.dPreferredFrameRate = jProjectTranslator.dProjectFrameRate;
+        }
+    }
 
 }

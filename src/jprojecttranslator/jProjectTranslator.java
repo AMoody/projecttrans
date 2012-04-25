@@ -51,10 +51,15 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     protected static List listWriters = new ArrayList();
     private static List listBWFProcessors = new ArrayList();
     private static javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
-    public static int intSampleRate = 48000;
-    public static double dFrameRate = 25;
-    public static int intXfadeLength = 200;
-//    public static double dFrameRate = 29.97;
+    // These preferred values are set by the user
+    public static int intPreferredSampleRate = 48000;
+    public static double dPreferredFrameRate = 25;
+    public static int intPreferredXfadeLength = 200;
+    // These project values are those of the currently loaded project
+    public static int intProjectSampleRate = intPreferredSampleRate;
+    public static double dProjectFrameRate = dPreferredFrameRate;
+    public static int intProjectXfadeLength = intPreferredXfadeLength;
+//    public static double dPreferredFrameRate = 29.97;
     /* This stores the last used folder. */
     private static File fPath;
     public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
@@ -426,9 +431,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         usersIniFile.WriteInteger("General","WindowX",ourWindow.getLocationOnScreen().x);
         if (ourWindow.getLocationOnScreen().y > 0)
         usersIniFile.WriteInteger("General","WindowY",ourWindow.getLocationOnScreen().y);
-        usersIniFile.WriteInteger("General", "SampleRate", intSampleRate);
-        usersIniFile.WriteInteger("General", "XfadeLength", intXfadeLength);
-        usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dFrameRate));
+        usersIniFile.WriteInteger("General", "SampleRate", intPreferredSampleRate);
+        usersIniFile.WriteInteger("General", "XfadeLength", intPreferredXfadeLength);
+        usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dPreferredFrameRate));
         usersIniFile.WriteString("General", "CurrentPath", fPath.toString());
         usersIniFile.WriteString("General", "LastFileOpenFilter", strLastFileOpenFilter);
         usersIniFile.UpdateFile();
@@ -534,7 +539,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
     private void menuPreferences(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuPreferences
         jPreferences dlgPref = new jPreferences(this,true);
-        dlgPref.setDropDowns(Integer.toString(intSampleRate) , String.format("%.2f", dFrameRate), intXfadeLength);
+        dlgPref.setDropDowns(Integer.toString(intPreferredSampleRate) , String.format("%.2f", dPreferredFrameRate), intPreferredXfadeLength);
         dlgPref.setLocationRelativeTo(null);
         dlgPref.setVisible(true);
         
@@ -639,9 +644,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
          * This allows the database table to be viewed in a web browser
          */
         int intHTTPPort = usersIniFile.ReadInteger("General","intHTTPPort",0);
-        intSampleRate = usersIniFile.ReadInteger("General","SampleRate",48000);
-        dFrameRate = Double.parseDouble(usersIniFile.ReadString("General","FrameRate","25"));
-        intXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",960);
+        intPreferredSampleRate = usersIniFile.ReadInteger("General","SampleRate",48000);
+        dPreferredFrameRate = Double.parseDouble(usersIniFile.ReadString("General","FrameRate","25"));
+        intPreferredXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",960);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         strLastFileOpenFilter = usersIniFile.ReadString("General","LastFileOpenFilter","");
         
@@ -756,10 +761,10 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                         
                         data[row][3] = getTimeString(rs.getFloat(5));
                         // Get the file sample rate and compare this with the desired sample rate for the project, they should be the same.
-                        // intSampleRate
+                        // intPreferredSampleRate
                         lSampleRate = rs.getLong(4);
                         // <html><font color="FF1493">text text text text text</font></html>
-                        if (lSampleRate == intSampleRate) {
+                        if (lSampleRate == intPreferredSampleRate) {
                             data[row][4] = "<html><font color=\"000000\">" + lSampleRate + "</font></html>";
                         } else {
                             data[row][4] = "<html><font color=\"FF4500\">" + lSampleRate + "</font></html>";
