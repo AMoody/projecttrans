@@ -138,8 +138,8 @@ public class jPreferences extends javax.swing.JDialog {
     }// </editor-fold>//GEN-END:initComponents
 
     private void okPressed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_okPressed
-        jProjectTranslator.intSampleRate = Integer.parseInt((String)jComboBox1.getSelectedItem());
-        jProjectTranslator.dFrameRate = Double.parseDouble((String)jComboBox2.getSelectedItem());
+        jProjectTranslator.intPreferredSampleRate = Integer.parseInt((String)jComboBox1.getSelectedItem());
+        jProjectTranslator.dPreferredFrameRate = Double.parseDouble((String)jComboBox2.getSelectedItem());
         // The value entered by the user is in ms, need to change this to samples
         float fXfadeLength = Float.parseFloat((String)jTextField1.getText());
         if (fXfadeLength > 2000) {
@@ -148,9 +148,9 @@ public class jPreferences extends javax.swing.JDialog {
         if (fXfadeLength < 0) {
             fXfadeLength = 0;
         }
-        int intXfadeLength = java.lang.Math.round(jProjectTranslator.intSampleRate * fXfadeLength / 1000);
+        int intXfadeLength = java.lang.Math.round(jProjectTranslator.intPreferredSampleRate * fXfadeLength / 1000);
         System.out.println("Xfade length in samples is set to " + intXfadeLength);
-        jProjectTranslator.intXfadeLength = intXfadeLength;
+        jProjectTranslator.intPreferredXfadeLength = intXfadeLength;
         this.setVisible(false);
     }//GEN-LAST:event_okPressed
 

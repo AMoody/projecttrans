@@ -123,16 +123,16 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             }
             // Write the SYSTEM section
             strADLText = strADLText + str4Space + "<SYSTEM>\n";
-            strADLText = strADLText + str8Space + "(SYS_XFADE_LEN)    " + String.format("%04d", jProjectTranslator.intXfadeLength) + "\n";
+            strADLText = strADLText + str8Space + "(SYS_XFADE_LEN)    " + String.format("%04d", jProjectTranslator.intPreferredXfadeLength) + "\n";
             strADLText = strADLText + str4Space + "</SYSTEM>\n";
             // Fill in the SEQUENCE tags
             strADLText = strADLText + str4Space + "<SEQUENCE>\n";
-            strADLText = strADLText + str8Space + "(SEQ_SAMPLE_RATE)  S" + jProjectTranslator.intSampleRate +  "\n";
+            strADLText = strADLText + str8Space + "(SEQ_SAMPLE_RATE)  S" + jProjectTranslator.intPreferredSampleRate +  "\n";
             String strFrameRate;
-            if (jProjectTranslator.dFrameRate%5 == 0) {
-                strFrameRate = "" + (java.lang.Math.round(jProjectTranslator.dFrameRate));
+            if (jProjectTranslator.dPreferredFrameRate%5 == 0) {
+                strFrameRate = "" + (java.lang.Math.round(jProjectTranslator.dPreferredFrameRate));
             } else {
-                strFrameRate = "" + jProjectTranslator.dFrameRate;
+                strFrameRate = "" + jProjectTranslator.dPreferredFrameRate;
             }
             strADLText = strADLText + str8Space + "(SEQ_FRAME_RATE)   " + strFrameRate + "\n";
             strADLText = strADLText + str8Space + "(SEQ_DEST_START)   00.00.00.00/0000\n";
@@ -158,7 +158,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strIndex = String.format("%04d", rs.getInt(1));
                 strURI = URLDecoder.decode(rs.getString(2), "UTF-8");
                 strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
-                strTimeCodeOffset = getADLTimeString(rs.getLong(6), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
+                strTimeCodeOffset = getADLTimeString(rs.getLong(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strName = URLDecoder.decode(rs.getString(5), "UTF-8");
                 strADLText = strADLText + str8Space + "(Index) " + strIndex + "\n";
                 strADLText = strADLText + str12Space + " (F) \"" + strURI + "\" \"" + strUMID + "\" " +  strTimeCodeOffset + " _ \"" + strName + "\" N\n";
@@ -174,19 +174,19 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             while (rs.next()) {
                 strIndex = String.format("%04d", rs.getInt(1));
                 strSourceIndex = String.format("%04d", rs.getInt(2));
-                strSourceIn = getADLTimeString(rs.getInt(4) + rs.getInt(8), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
-                strDestIn = getADLTimeString(rs.getInt(5), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
-                strDestOut = getADLTimeString(rs.getInt(6), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
+                strSourceIn = getADLTimeString(rs.getInt(4) + rs.getInt(8), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                strDestIn = getADLTimeString(rs.getInt(5), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                strDestOut = getADLTimeString(rs.getInt(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strRemark = URLDecoder.decode(rs.getString(7), "UTF-8");
                 strInFade = rs.getString(9);
                 strOutFade = rs.getString(11);
                 strADLText = strADLText + str8Space + "(Entry) " + strIndex + "\n";
                 strADLText = strADLText + str12Space + "(Cut) I " + strSourceIndex + "  " + rs.getString(3) + "  " + strSourceIn + "  " + strDestIn + "  " + strDestOut + "  R\n";
                 if (strInFade != null && strInFade.length() > 0) {
-                    strADLText = strADLText + str12Space + "(Infade) " + getADLTimeString(rs.getInt(10), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate) + "  " + strInFade + "\n";
+                    strADLText = strADLText + str12Space + "(Infade) " + getADLTimeString(rs.getInt(10), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate) + "  " + strInFade + "\n";
                 }
                 if (strOutFade != null && strOutFade.length() > 0) {
-                    strADLText = strADLText + str12Space + "(Outfade) " + getADLTimeString(rs.getInt(12), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate) + "  " + strOutFade + "\n";
+                    strADLText = strADLText + str12Space + "(Outfade) " + getADLTimeString(rs.getInt(12), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate) + "  " + strOutFade + "\n";
                 }                
                 if (strRemark != null && strRemark.length() > 0) {
                     strADLText = strADLText + str12Space + "(Rem) NAME \"" + strRemark + "\"\n";
@@ -201,7 +201,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
             while (rs.next()) {
-                strDestIn = getADLTimeString(rs.getInt(2), jProjectTranslator.intSampleRate, jProjectTranslator.dFrameRate);
+                strDestIn = getADLTimeString(rs.getInt(2), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strADLText = strADLText + str8Space + "(FP)  " + rs.getString(1) + "  " + strDestIn + "  " + rs.getString(3) + "\n";
             }
             strADLText = strADLText + str4Space + "</FADER_LIST>\n";
@@ -228,7 +228,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
      * If an invalid frame rate is supplied it defaults to 25
      * These are standard across most of the world.
      * @param lSamples This is a long with the sample count to be converted.
-     * @param intSampleRate This is the sample rate, only 44100 and 48000 are valid, 48000 is the default.
+     * @param intPreferredSampleRate This is the sample rate, only 44100 and 48000 are valid, 48000 is the default.
      * @param fFrameRate This is a float with the frame rate, only 24, 25, 30 and 29.97 are valid numbers, 25 is the default.
      * @return Returns a formatted string representing the time in ADL format. See AES31 specs for more information.
      */
