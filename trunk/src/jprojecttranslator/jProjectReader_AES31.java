@@ -90,7 +90,12 @@ public class jProjectReader_AES31 extends jProjectReader {
         Element xmlProject = xmlRoot.element("PROJECT");
         parseAES31Project(xmlProject);
         Element xmlSequence = xmlRoot.element("SEQUENCE");
-        parseAES31Sequence(xmlSequence);
+        if (!parseAES31Sequence(xmlSequence)) {
+            return false;
+        }
+        Element xmlIndex = xmlRoot.element("SOURCE_INDEX");
+        parseAES31Source_Index(xmlIndex);
+        
         return true;
         
     }
@@ -132,9 +137,9 @@ public class jProjectReader_AES31 extends jProjectReader {
         }
         Pattern pCrtr = Pattern.compile("\\(VER_CRTR\\)\\s*([\\d|\\.]+)");
         mMatcher = pCrtr.matcher(strLine);
-            if (mMatcher.find()) {
-                strCreatorVersion = mMatcher.group(1);
-                System.out.println("ADL crtr found " + strCreatorVersion);
+        if (mMatcher.find()) {
+            strCreatorVersion = mMatcher.group(1);
+            System.out.println("ADL crtr found " + strCreatorVersion);
         }    
         try {
             strSQL = "INSERT INTO PUBLIC.VERSION (strID, strUID, strADLVersion, strCreator, strCreatorVersion) VALUES (" +
@@ -240,14 +245,20 @@ public class jProjectReader_AES31 extends jProjectReader {
     }
     protected boolean parseAES31Sequence(Element setSequence) {
         String strLine = setSequence.getText();
-        int intFrameRate = 25;
         Matcher mMatcher;
         
         Pattern pPattern = Pattern.compile("\\(SEQ_SAMPLE_RATE\\)\\s*S(\\d+)");
         mMatcher = pPattern.matcher(strLine);
         if (mMatcher.find()) {
-            jProjectTranslator.intProjectSampleRate = Integer.parseInt(mMatcher.group(1));
-            System.out.println("SEQUENCE sample rate found " + jProjectTranslator.intProjectSampleRate);
+            int intTempRate = Integer.parseInt(mMatcher.group(1));
+            if (intTempRate == 44100 || intTempRate == 48000) {
+                jProjectTranslator.intProjectSampleRate = intTempRate;
+                System.out.println("SEQUENCE sample rate found " + jProjectTranslator.intProjectSampleRate);
+            } else {
+                oProjectTranslator.writeStringToPanel("The sample rate found in the AES31 project " + intTempRate + " is not supported. " );
+                return false;
+            }
+            
             if (jProjectTranslator.intPreferredSampleRate != jProjectTranslator.intProjectSampleRate) {
                 sampleRateChange();
 
@@ -257,14 +268,49 @@ public class jProjectReader_AES31 extends jProjectReader {
         pPattern = Pattern.compile("\\(SEQ_FRAME_RATE\\)\\s*([\\d|\\.]+)");
         mMatcher = pPattern.matcher(strLine);
         if (mMatcher.find()) {
-            jProjectTranslator.dProjectFrameRate = Double.parseDouble(mMatcher.group(1));
-            System.out.println("SEQUENCE frame rate found " + jProjectTranslator.dProjectFrameRate);
+            double dTempRate = Double.parseDouble(mMatcher.group(1));
+            if (dTempRate == 24 || dTempRate == 25 || dTempRate == 29.97 || dTempRate == 30) {
+                jProjectTranslator.dProjectFrameRate = dTempRate;
+                System.out.println("SEQUENCE frame rate found " + jProjectTranslator.dProjectFrameRate);
+            } else {
+                oProjectTranslator.writeStringToPanel("The frame rate found in the AES31 project " + dTempRate + " is not supported. " );
+                return false;
+            }
+            
             if (jProjectTranslator.dPreferredFrameRate != jProjectTranslator.dProjectFrameRate) {
                 frameRateChange();
-
             }
         }
         
+        
         return true;
+    }
+    protected boolean parseAES31Source_Index(Element setSource) {
+        String strLine = setSource.getText();
+        String[] arrLines = strLine.split("(Index)");
+        Matcher mMatcher;
+        Pattern pPattern;
+        for(int i = 0;i < arrLines.length;i++) {
+
+            strLine = arrLines[i];
+            System.out.println("Checking line " + strLine);
+// 0001 (F) "URL:file://localhost/d:/Projects/USER1657.wav" _  00.00.00.00/0000  _  "USER1657"  N            
+            pPattern = Pattern.compile("\\s*(\\d\\d\\d\\d)"
+                    + "\\s*\\(\\w\\)\\s*"
+                    + "\"(.*?)\"\\s*"
+                    + "(\".*?\"|_)\\s*"
+                    + "(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d|_)\\s*"
+                    + "(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d|_)\\s*"
+                    + "(\".*?\"|_)\\s*"
+                    + "(\\w)");
+            mMatcher = pPattern.matcher(strLine);
+            if (mMatcher.find()) {
+                
+                System.out.println("SOURCE_INDEX entry found " + mMatcher.group(1) + " " + mMatcher.group(2) + " " + mMatcher.group(3) + " " + mMatcher.group(4) + " "
+                        + "" + mMatcher.group(5) + " " + mMatcher.group(6) + " " + mMatcher.group(7));
+            }
+        }
+        return false;
+        
     }
 }
