@@ -287,15 +287,13 @@ public class jProjectReader_AES31 extends jProjectReader {
     }
     protected boolean parseAES31Source_Index(Element setSource) {
         String strLine = setSource.getText();
-        String[] arrLines = strLine.split("(Index)");
+        String strName, strURI, strFileName, strUMID;
+        long lLength, lFileOffset;
+        int intIndex;
         Matcher mMatcher;
         Pattern pPattern;
-        for(int i = 0;i < arrLines.length;i++) {
-
-            strLine = arrLines[i];
-            System.out.println("Checking line " + strLine);
-// 0001 (F) "URL:file://localhost/d:/Projects/USER1657.wav" _  00.00.00.00/0000  _  "USER1657"  N            
-            pPattern = Pattern.compile("\\s*(\\d\\d\\d\\d)"
+        // 0001 (F) "URL:file://localhost/d:/Projects/USER1657.wav" _  00.00.00.00/0000  _  "USER1657"  N            
+        pPattern = Pattern.compile("\\s*(\\d\\d\\d\\d)"
                     + "\\s*\\(\\w\\)\\s*"
                     + "\"(.*?)\"\\s*"
                     + "(\".*?\"|_)\\s*"
@@ -303,14 +301,81 @@ public class jProjectReader_AES31 extends jProjectReader {
                     + "(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d|_)\\s*"
                     + "(\".*?\"|_)\\s*"
                     + "(\\w)");
-            mMatcher = pPattern.matcher(strLine);
-            if (mMatcher.find()) {
-                
-                System.out.println("SOURCE_INDEX entry found " + mMatcher.group(1) + " " + mMatcher.group(2) + " " + mMatcher.group(3) + " " + mMatcher.group(4) + " "
+        mMatcher = pPattern.matcher(strLine);  
+        while (mMatcher.find()) {
+            System.out.println("SOURCE_INDEX entry found " + mMatcher.group(1) + " " + mMatcher.group(2) + " " + mMatcher.group(3) + " " + mMatcher.group(4) + " "
                         + "" + mMatcher.group(5) + " " + mMatcher.group(6) + " " + mMatcher.group(7));
+            // 0001 (F) "URL:file://localhost/d:/Projects/USER1657.wav" _  00.00.00.00/0000  _  "USER1657"  N            
+            try {
+                
+                strName = URLEncoder.encode(mMatcher.group(6), "UTF-8");
+                strURI = URLEncoder.encode(mMatcher.group(2), "UTF-8");
+                strUMID = URLEncoder.encode(mMatcher.group(3), "UTF-8");
+                strFileName = strURI;
+                lLength = 0;
+                lFileOffset = 0;
+                intIndex = Integer.parseInt(mMatcher.group(1));
+                strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strUMID, intLength, strName, intFileOffset, intTimeCodeOffset, strSourceFile, intCopied, intVCSInProject, intFileSize) VALUES (" +
+                    intIndex + ", \'F\',\'" + strURI + "\',\'" + strUMID + "\', " + lLength + ", \'" + strName + "\', " + lFileOffset + ", 0, \'" + strFileName + "\', 0, 0, 0) ;";
+                int i = st.executeUpdate(strSQL);
+                if (i == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                }
+
+            } catch(java.io.UnsupportedEncodingException e) {
+                System.out.println("Exception " + e.toString());
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
             }
         }
-        return false;
-        
+        return true;
     }
+    public static long getADLTimeLong (String strADLTime) {
+        // 10.00.12.06/0256
+        // \d\d\D\d\d\D\d\d\D\d\d\D\d\d\d\d
+        Matcher mMatcher;
+        Pattern pPattern;
+        pPattern = Pattern.compile("(\\d\\d)(\\D)(\\d\\d)(\\D)(\\d\\d)(\\D)(\\d\\d)(\\D)(\\d\\d\\d\\d)");
+        mMatcher = pPattern.matcher(strADLTime); 
+        if (!mMatcher.find()) {
+            return 0;
+        }
+        
+        String strSep1 = mMatcher.group(2);
+        String strSep2 = mMatcher.group(8);
+        String strSep3 = mMatcher.group(6);
+        int intSampleRate = 0;
+        if (strSep2.equalsIgnoreCase("|")) {
+            intSampleRate = 44100;
+        } 
+        if (strSep2.equalsIgnoreCase("/")) {
+            intSampleRate = 48000;
+        }
+        if (intSampleRate == 0) {
+            return 0;
+        }
+        
+        double dFrameRate = 0;
+        if (strSep1.equalsIgnoreCase("|")) {
+            dFrameRate = 30;
+        }
+        if (strSep1.equalsIgnoreCase("=")) {
+            dFrameRate = 24;
+        }
+        if (strSep1.equalsIgnoreCase(".")) {
+            dFrameRate = 25;
+        }
+        if (strSep1.equalsIgnoreCase(":")) {
+            dFrameRate = 29.97;
+        }
+        if (dFrameRate == 0) {
+            return 0;
+        }
+        return 100;
+
+//            return String.format("%02d", lHours) + strSep1 + String.format("%02d", lMinutes) + strSep1 + String.format("%02d", lSeconds) + strSep1 +
+//                    String.format("%02d", lFrames) + strSep2 + String.format("%04d", lSamples);
+
+
+    }    
 }

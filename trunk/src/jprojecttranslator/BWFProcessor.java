@@ -349,7 +349,7 @@ public class BWFProcessor extends Observable implements Runnable {
             status = 5;
         }
         lIndicatedFileSize = sourceBytes.getInt() + 8; // There are 8 extra bytes at the start 'RIFF (filesize(4))'
-        // Catch a special case in VCS where indicated size in 0 when the data is MP3
+        // Catch a special case in VCS where indicated size is sometimes set to 0
         if (lIndicatedFileSize == 8 && lSourceFileEnd > lSourceFileStart) {
             lIndicatedFileSize = lSourceFileEnd - lSourceFileStart;
         }
@@ -405,7 +405,7 @@ public class BWFProcessor extends Observable implements Runnable {
         System.out.println("Total file size is " + lTotalFileSize);
         System.out.println("Indicated file size is " + lIndicatedFileSize);
         System.out.println("Calculated file size is " + lCalculatedFileSize);
-        // Catch a special case where dataChunkSize = 0 in VCS files where the data block contains mp3 data.
+        // Catch a special case where sometimes  dataChunkSize = 0 in VCS.
         if (dataChunkSize == 0 && lIndicatedFileSize > lCalculatedFileSize) {
             dataChunkSize = lIndicatedFileSize - lCalculatedFileSize;
             lCalculatedFileSize = lIndicatedFileSize;
@@ -587,8 +587,16 @@ public class BWFProcessor extends Observable implements Runnable {
                 lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
             }
             // The start chunks are written, now we need to add the remainder of the source file starting from the data chunk.
-            inChannel.position(dataChunkOffset);
-            lBytePointer = dataChunkOffset;
+            ByteBuffer byteTempData = ByteBuffer.allocate(8);
+            byteTempData.position(0);
+            byteTempData.order(ByteOrder.LITTLE_ENDIAN);
+            // Add the ckID (data) at the start
+            byteTempData.put("data".getBytes());
+            byteTempData.putInt((int)dataChunkSize);
+            byteTempData.flip();
+            outChannel.write(byteTempData);
+            inChannel.position(dataChunkOffset + 8);
+            lBytePointer = dataChunkOffset + 8;
             long lEndByte;
             if (bMultipart) {
 //                lEndByte = lCalculatedFileSize + 12 + lSourceFileStart;
