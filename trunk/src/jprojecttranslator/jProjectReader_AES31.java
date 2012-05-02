@@ -5,6 +5,7 @@ package jprojecttranslator;
 
 import java.io.File;
 import java.net.URLEncoder;
+import java.util.Iterator;
 import java.util.StringTokenizer;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.dom4j.Document;
@@ -95,7 +96,8 @@ public class jProjectReader_AES31 extends jProjectReader {
         }
         Element xmlIndex = xmlRoot.element("SOURCE_INDEX");
         parseAES31Source_Index(xmlIndex);
-        
+        Element xmlList = xmlRoot.element("EVENT_LIST");
+        parseAES31Event_List(xmlList);
         return true;
         
     }
@@ -288,7 +290,7 @@ public class jProjectReader_AES31 extends jProjectReader {
     protected boolean parseAES31Source_Index(Element setSource) {
         String strLine = setSource.getText();
         String strName, strURI, strFileName, strUMID;
-        long lLength, lFileOffset;
+        long lLength, lFileTCOffset;
         int intIndex;
         Matcher mMatcher;
         Pattern pPattern;
@@ -312,11 +314,11 @@ public class jProjectReader_AES31 extends jProjectReader {
                 strURI = URLEncoder.encode(mMatcher.group(2), "UTF-8");
                 strUMID = URLEncoder.encode(mMatcher.group(3), "UTF-8");
                 strFileName = strURI;
-                lLength = 0;
-                lFileOffset = 0;
+                lLength = getADLTimeLong(mMatcher.group(5));
+                lFileTCOffset = getADLTimeLong(mMatcher.group(4));
                 intIndex = Integer.parseInt(mMatcher.group(1));
                 strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strUMID, intLength, strName, intFileOffset, intTimeCodeOffset, strSourceFile, intCopied, intVCSInProject, intFileSize) VALUES (" +
-                    intIndex + ", \'F\',\'" + strURI + "\',\'" + strUMID + "\', " + lLength + ", \'" + strName + "\', " + lFileOffset + ", 0, \'" + strFileName + "\', 0, 0, 0) ;";
+                    intIndex + ", \'F\',\'" + strURI + "\',\'" + strUMID + "\', " + lLength + ", \'" + strName + "\', 0, " + lFileTCOffset + ", \'" + strFileName + "\', 0, 0, 0) ;";
                 int i = st.executeUpdate(strSQL);
                 if (i == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -330,19 +332,147 @@ public class jProjectReader_AES31 extends jProjectReader {
         }
         return true;
     }
+    protected boolean parseAES31Event_List(Element setEvent) {
+        String strLine = setEvent.getText();
+        String[] arrLines = strLine.split("(?=\\s*\\(Entry\\)\\s*\\d\\d\\d\\d)");
+        for(int i =0; i < arrLines.length ; i++) {
+//            System.out.println(arrLines[i]);
+            parseAES31Event(arrLines[i]);
+        }
+        return true;
+
+        
+    }
+    protected boolean parseAES31Event(String strEvent){
+        Matcher mMatcher;
+        Pattern pPattern;
+        int intFinds = 0;
+        int intIndex = 0, intSourceIndex = 0;
+        long lSourceIn, lDestIn, lDestOut, lInFade, lOutFade;
+        String strType, strRef, strTrackMap, strRemark, strInFade, strOutFade;
+        pPattern = Pattern.compile("\\s*\\(Entry\\)\\s*(\\d\\d\\d\\d)");
+        mMatcher = pPattern.matcher(strEvent);  
+        if (mMatcher.find()) {
+            intIndex = Integer.parseInt(mMatcher.group(1));
+            intFinds++;
+            System.out.println("EVENT_LIST entry found " + intIndex);
+        }
+        // (Cut) I 0002  1~2 1~2  00.00.03.15/1152  00.00.00.00/0000  00.00.10.06/0096  R
+//        pPattern = Pattern.compile("\\(Cut\\)\\s*(.*?)\\s*(\\d{4})\s*(\\d~\\d|\\d)\\s*(\\d~\\d|\\d)\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\w*)");
+        // pPattern = Pattern.compile("\\(Cut\\)\\s*(.*?)\\s*(\\d{4})\\s*(\\d~\\d|\\d)\\s*(\\d~\\d|\\d)\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\w*)");
+        pPattern = Pattern.compile("\\(Cut\\)\\s*(.*?)\\s*(\\d{4})" // Cut index
+                + "\\s*(\\d~\\d|\\d)" // Source channel(s)
+                + "\\s*(\\d~\\d|\\d)" // Destination channel(s)
+                + "\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)" // Source in time
+                + "\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)" // Destination in time
+                + "\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)" // Destination out time
+                + "");
+        mMatcher = pPattern.matcher(strEvent);  
+        if (mMatcher.find()) {
+            intFinds++;
+            strType = "Cut";
+            strRef = mMatcher.group(1);
+            intSourceIndex = Integer.parseInt(mMatcher.group(2));
+            strTrackMap = mMatcher.group(3) + " " + mMatcher.group(4);
+            lSourceIn = getADLTimeLong(mMatcher.group(5));
+            lDestIn = getADLTimeLong(mMatcher.group(6));
+            lDestOut = getADLTimeLong(mMatcher.group(7));
+            System.out.println("EVENT_LIST (Cut) entry found 2 " + mMatcher.group(2) + " 3 " + mMatcher.group(3) 
+                    + " 4 " + mMatcher.group(4) + " 5 " + mMatcher.group(5) + " 6 " + mMatcher.group(6) + " 7 " + mMatcher.group(7));
+            
+        } else {
+            strType = "Cut";
+            strRef = "";
+            strTrackMap = "";
+            lSourceIn = 0;
+            lDestIn = 0;
+            lDestOut = 0;
+        }
+        if (intFinds < 2) {
+            return false;
+        }
+        pPattern = Pattern.compile("\\(Rem\\)\\s*NAME\\s*\"(.+)\"");
+        mMatcher = pPattern.matcher(strEvent);  
+        if (mMatcher.find()) {
+            strRemark = mMatcher.group(1);
+        } else {
+            strRemark = "";
+        }
+        pPattern = Pattern.compile("\\(Infade\\)\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)\\s*"
+                + "((CURVE|LIN)\\s*"
+                + "([+-]?\\d+\\.?\\d*|_)\\s*"
+                + "([+-]?\\d+\\.?\\d*|_)\\s*"
+                + "([+-]?\\d+\\.?\\d*|_))");
+        mMatcher = pPattern.matcher(strEvent);  
+        if (mMatcher.find()) {
+            strInFade = mMatcher.group(2);
+            lInFade = getADLTimeLong(mMatcher.group(1));
+            System.out.println("In fade entry found 1 " + mMatcher.group(1) + " 2 " + mMatcher.group(2));
+        } else {
+            strInFade = "";
+            lInFade = 0;
+        }
+        
+        pPattern = Pattern.compile("\\(Outfade\\)\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)\\s*"
+                + "((CURVE|LIN)\\s*"
+                + "([+-]?\\d+\\.?\\d*|_)\\s*"
+                + "([+-]?\\d+\\.?\\d*|_)\\s*"
+                + "([+-]?\\d+\\.?\\d*|_))");
+        mMatcher = pPattern.matcher(strEvent);  
+        if (mMatcher.find()) {
+            strOutFade = mMatcher.group(2);
+            lOutFade = getADLTimeLong(mMatcher.group(1));
+            System.out.println("Out fade entry found 1 " + mMatcher.group(1) + " 2 " + mMatcher.group(2));
+        } else {
+            strOutFade = "";
+            lOutFade = 0;
+        }
+        try {
+            strRemark = URLEncoder.encode(strRemark, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            System.out.println("Error on while trying to encode string" );
+            return false;
+        }
+        
+        try {
+                strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
+                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, intTrackIndex, bOpaque) VALUES (" +
+                    intIndex + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
+                        + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', "
+                        + "\'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ", " + intIndex + ""
+                        + ", 0, 0, \'N\') ;";
+                int j = st.executeUpdate(strSQL);
+                if (j == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                }
+
+                
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+                return false;
+            }        
+        
+        
+        return true;
+    }
     public static long getADLTimeLong (String strADLTime) {
         // 10.00.12.06/0256
         // \d\d\D\d\d\D\d\d\D\d\d\D\d\d\d\d
+        long lSamples = 0;
         Matcher mMatcher;
         Pattern pPattern;
         pPattern = Pattern.compile("(\\d\\d)(\\D)(\\d\\d)(\\D)(\\d\\d)(\\D)(\\d\\d)(\\D)(\\d\\d\\d\\d)");
         mMatcher = pPattern.matcher(strADLTime); 
         if (!mMatcher.find()) {
-            return 0;
+            return -1;
         }
-        
+        int intHours = Integer.parseInt(mMatcher.group(1));
         String strSep1 = mMatcher.group(2);
+        int intMinutes = Integer.parseInt(mMatcher.group(3));
+        int intSeconds = Integer.parseInt(mMatcher.group(5));
+        int intFrames = Integer.parseInt(mMatcher.group(7));
         String strSep2 = mMatcher.group(8);
+        int intSamples = Integer.parseInt(mMatcher.group(9));
         String strSep3 = mMatcher.group(6);
         int intSampleRate = 0;
         if (strSep2.equalsIgnoreCase("|")) {
@@ -352,7 +482,7 @@ public class jProjectReader_AES31 extends jProjectReader {
             intSampleRate = 48000;
         }
         if (intSampleRate == 0) {
-            return 0;
+            return -1;
         }
         
         double dFrameRate = 0;
@@ -369,13 +499,37 @@ public class jProjectReader_AES31 extends jProjectReader {
             dFrameRate = 29.97;
         }
         if (dFrameRate == 0) {
-            return 0;
+            return -1;
         }
-        return 100;
+        if (dFrameRate%5 == 0 || dFrameRate == 24) {
+            // Frame rate 24, 25 or 30, simple maths
+            int intFrameRate = (int)dFrameRate;
+            lSamples = intHours*60*60*intSampleRate;
+            lSamples = lSamples + intMinutes*60*intSampleRate;
+            lSamples = lSamples + intSeconds*intSampleRate;
+            lSamples = lSamples + intFrames*intSampleRate/intFrameRate;
+            lSamples = lSamples + intSamples;
+            return lSamples;
+        }
+        if (dFrameRate == 29.97) {
+            // Frame rate 29.97, hard maths, first of all calculate the frame number, convert to samples and then add remaining samples later
+            //CONVERT DROP FRAME TIMECODE TO A FRAME NUMBER
+            //Code by David Heidelberger, adapted from Andrew Duncan
+            //Given ints called intHours, intMinutes, intSeconds, frames, and a double called framerate
 
-//            return String.format("%02d", lHours) + strSep1 + String.format("%02d", lMinutes) + strSep1 + String.format("%02d", lSeconds) + strSep1 +
-//                    String.format("%02d", lFrames) + strSep2 + String.format("%04d", lSamples);
+            int intDropFrames = (int)java.lang.Math.round(dFrameRate*.066666); //Number of drop frames is 6% of framerate rounded to nearest integer
+            int intFrameRate = (int)java.lang.Math.round(dFrameRate); //We don't need the exact framerate anymore, we just need it rounded to nearest integer
 
+            int hourFrames = intFrameRate*60*60; //Number of frames per hour (non-drop)
+            int minuteFrames = intFrameRate*60; //Number of frames per minute (non-drop)
+            int totalMinutes = (60*intHours) + intMinutes; //Total number of minutes
+            long lFrameNumber = ((hourFrames * intHours) + (minuteFrames * intMinutes) + (intFrameRate * intSeconds) + intFrames) - (intDropFrames * (totalMinutes - (totalMinutes / 10)));            
+            lSamples = (long)java.lang.Math.round(lFrameNumber * intSampleRate / dFrameRate);
+            lSamples = lSamples + intSamples;
+            return lSamples;
+            
+        }
+        return -1;
 
     }    
 }
