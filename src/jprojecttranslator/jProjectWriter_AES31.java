@@ -7,6 +7,7 @@ package jprojecttranslator;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.net.URI;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.sql.ResultSet;
@@ -52,13 +53,14 @@ public class jProjectWriter_AES31 extends jProjectWriter {
      * 
      */
     protected boolean writeURIs () {
-        String strURI = fDestFolder.toString();
-        strURI = strURI.replaceAll("\\\\", "/");
-        if (strURI.startsWith("/")) {
-            strURI = "URL:file://localhost" + strURI;
-        } else {
-            strURI = "URL:file://localhost/" + strURI;
-        }
+//        String strURI = fDestFolder.toString();
+        
+//        strURI = strURI.replaceAll("\\\\", "/");
+//        if (strURI.startsWith("/")) {
+//            strURI = "URL:file://localhost" + strURI;
+//        } else {
+//            strURI = "URL:file://localhost/" + strURI;
+//        }
         int intSourceIndex;
         String strName;
         int i;
@@ -69,13 +71,17 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             while (rs.next()) {
                 intSourceIndex = rs.getInt(1);
                 strName = URLDecoder.decode(rs.getString(2), "UTF-8");
-                if (strURI.endsWith("/")) {
-                    strName = strURI + strName;
-                } else {
-                    strName = strURI + "/" + strName;
-                }
-                strName = URLEncoder.encode(strName, "UTF-8");
-                strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strURI = \'" + strName + "\' WHERE intIndex = " + intSourceIndex + ";";
+//                if (strURI.endsWith("/")) {
+//                    strName = strURI + strName;
+//                } else {
+//                    strName = strURI + "/" + strName;
+//                }
+                
+                File fTemp = new File(fDestFolder.toString(),strName);
+                URI uriTemp = new URI("file","localhost",fTemp.toString(),null);
+                String strURI = "URL:" + uriTemp.toString();
+                strURI = URLEncoder.encode(strURI, "UTF-8");
+                strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strURI = \'" + strURI + "\' WHERE intIndex = " + intSourceIndex + ";";
                 i = st.executeUpdate(strSQL);
                 if (i == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -85,7 +91,9 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             System.out.println("Error on SQL " + strSQL + e.toString());
         } catch (java.io.UnsupportedEncodingException e) {
             System.out.println("Error on decoding at " + strSQL + e.toString());
-        }
+        } catch (java.net.URISyntaxException e) {
+                    System.out.println("URI encoding exception  " + e.toString());
+                }
         
         return true;
     }
