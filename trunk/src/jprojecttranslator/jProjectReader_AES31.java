@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import java.net.URI;
 
 /**
  * This is a project reader for AES31 (.adl) files
@@ -98,6 +99,9 @@ public class jProjectReader_AES31 extends jProjectReader {
         parseAES31Source_Index(xmlIndex);
         Element xmlList = xmlRoot.element("EVENT_LIST");
         parseAES31Event_List(xmlList);
+        // parseAES31Fader_LIST
+        Element xmlFades = xmlRoot.element("FADER_LIST");
+        parseAES31Fader_List(xmlFades);
         return true;
         
     }
@@ -287,6 +291,11 @@ public class jProjectReader_AES31 extends jProjectReader {
         
         return true;
     }
+    /**
+     * This will parse the SOURCE_INDEX section of an adl file in to the database. It contains information about the sound files which are used.
+     * @param setSource A string containing the (Index) information.
+     * @return true if the string was parsed successfully.
+     */
     protected boolean parseAES31Source_Index(Element setSource) {
         String strLine = setSource.getText();
         String strName, strURI, strFileName, strUMID;
@@ -309,9 +318,18 @@ public class jProjectReader_AES31 extends jProjectReader {
                         + "" + mMatcher.group(5) + " " + mMatcher.group(6) + " " + mMatcher.group(7));
             // 0001 (F) "URL:file://localhost/d:/Projects/USER1657.wav" _  00.00.00.00/0000  _  "USER1657"  N            
             try {
-                
+                // URL:file://localhost//home/scobeam/Music//offset_test_9216E5BD.wav
                 strName = URLEncoder.encode(mMatcher.group(6), "UTF-8");
-                strURI = URLEncoder.encode(mMatcher.group(2), "UTF-8");
+                // Get the raw URI string
+                strURI = mMatcher.group(2);
+                // Strip off the leading URL: if it exists
+                if (strURI.startsWith("URL:")) {
+                    strURI = strURI.substring(4, strURI.length());
+                }
+                // Make it in to a URI
+                URI uriTemp = new URI(strURI);
+                strURI = uriTemp.getPath();
+                strURI = URLEncoder.encode(strURI, "UTF-8");
                 strUMID = URLEncoder.encode(mMatcher.group(3), "UTF-8");
                 strFileName = strURI;
                 lLength = getADLTimeLong(mMatcher.group(5));
@@ -328,10 +346,17 @@ public class jProjectReader_AES31 extends jProjectReader {
                 System.out.println("Exception " + e.toString());
             } catch (java.sql.SQLException e) {
                 System.out.println("Error on SQL " + strSQL + e.toString());
+            } catch (java.net.URISyntaxException e) {
+                System.out.println("URI encoding exception  " + e.toString());
             }
         }
         return true;
     }
+    /**
+     * This will take a series of  AES31 events in a string and split them up to be processed.
+     * @param setEvent A string containing a series of AES31 events.
+     * @return true if the parsing was successful.
+     */
     protected boolean parseAES31Event_List(Element setEvent) {
         String strLine = setEvent.getText();
         String[] arrLines = strLine.split("(?=\\s*\\(Entry\\)\\s*\\d\\d\\d\\d)");
@@ -343,6 +368,11 @@ public class jProjectReader_AES31 extends jProjectReader {
 
         
     }
+    /**
+     * This will parse the entries from a single 'EVENT' in to the database including (Cut), (Infade), (Outfade) and (Rem)
+     * @param strEvent A string containing a single AES31 event.
+     * @return true if the parsing was successful.
+     */
     protected boolean parseAES31Event(String strEvent){
         Matcher mMatcher;
         Pattern pPattern;
@@ -453,6 +483,29 @@ public class jProjectReader_AES31 extends jProjectReader {
             }        
         
         
+        return true;
+    }
+    protected boolean parseAES31Fader_List(Element xmlFades) {
+        String strFades = xmlFades.getText();
+        Matcher mMatcher;
+        Pattern pPattern;
+        pPattern = Pattern.compile("\\(FP\\)\\s*(\\d+)\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)\\s*([+-]?\\d+\\.?\\d*|_)");
+        mMatcher = pPattern.matcher(strFades);
+        int j;  
+        while (mMatcher.find()) {
+            
+            try {
+                strSQL = "INSERT INTO PUBLIC.FADER_LIST (intTrack, intTime, strLevel) VALUES (" +
+                    mMatcher.group(1) + ", " + getADLTimeLong(mMatcher.group(2)) + ",\'" + mMatcher.group(3) + "\') ;";
+                        j = st.executeUpdate(strSQL);
+                        if (j == -1) {
+                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                        }
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+            }
+            System.out.println("FADER_LIST entry found " + mMatcher.group(1) + " " + mMatcher.group(2) + " " + mMatcher.group(3));
+        }
         return true;
     }
     public static long getADLTimeLong (String strADLTime) {
