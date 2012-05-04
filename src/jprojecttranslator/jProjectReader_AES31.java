@@ -20,6 +20,9 @@ import java.util.regex.Matcher;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.sql.ResultSet;
+import java.sql.Statement;
 
 /**
  * This is a project reader for AES31 (.adl) files
@@ -28,6 +31,7 @@ import java.net.URI;
 public class jProjectReader_AES31 extends jProjectReader {
     /** This is the xml document object which is used for loading and saving to an xml file.*/
     static Document xmlDocument = DocumentHelper.createDocument();
+    File fAudioFolder;
     DateTime dtsCreated;
     public static DateTimeFormatter fmtADLXML = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZZ");
     /**
@@ -68,6 +72,8 @@ public class jProjectReader_AES31 extends jProjectReader {
      * @return                  Returns true if the file was loaded.
      */
     protected boolean loadXMLData(File setSourceFile) {
+        // Initial setting for audio folder is a guess
+        fAudioFolder = setSourceFile.getParentFile();
         try {
             SAXReader reader = new SAXReader();
             xmlDocument = reader.read(setSourceFile);
@@ -99,9 +105,10 @@ public class jProjectReader_AES31 extends jProjectReader {
         parseAES31Source_Index(xmlIndex);
         Element xmlList = xmlRoot.element("EVENT_LIST");
         parseAES31Event_List(xmlList);
-        // parseAES31Fader_LIST
         Element xmlFades = xmlRoot.element("FADER_LIST");
         parseAES31Fader_List(xmlFades);
+        // Need to look at the sound files now to get further information
+        loadSoundFiles(st, fAudioFolder);
         return true;
         
     }
@@ -319,7 +326,14 @@ public class jProjectReader_AES31 extends jProjectReader {
             // 0001 (F) "URL:file://localhost/d:/Projects/USER1657.wav" _  00.00.00.00/0000  _  "USER1657"  N            
             try {
                 // URL:file://localhost//home/scobeam/Music//offset_test_9216E5BD.wav
-                strName = URLEncoder.encode(mMatcher.group(6), "UTF-8");
+                // Strip off leading and trailing quotes
+                strName = mMatcher.group(6);
+                strName = strName.substring(1, strName.length()-1);
+                strName = URLEncoder.encode(strName, "UTF-8");
+                strUMID = mMatcher.group(3);
+                strUMID = strUMID.substring(1, strUMID.length()-1);
+                strUMID = URLEncoder.encode(strUMID, "UTF-8");
+                
                 // Get the raw URI string
                 strURI = mMatcher.group(2);
                 // Strip off the leading URL: if it exists
@@ -329,14 +343,17 @@ public class jProjectReader_AES31 extends jProjectReader {
                 // Make it in to a URI
                 URI uriTemp = new URI(strURI);
                 strURI = uriTemp.getPath();
+                File fTemp = new File(strURI);
+                // The source file name is read from the URI
+                strFileName = fTemp.getName();
+                strFileName = URLEncoder.encode(strFileName, "UTF-8");
                 strURI = URLEncoder.encode(strURI, "UTF-8");
-                strUMID = URLEncoder.encode(mMatcher.group(3), "UTF-8");
-                strFileName = strURI;
+                
                 lLength = getADLTimeLong(mMatcher.group(5));
                 lFileTCOffset = getADLTimeLong(mMatcher.group(4));
                 intIndex = Integer.parseInt(mMatcher.group(1));
                 strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strUMID, intLength, strName, intFileOffset, intTimeCodeOffset, strSourceFile, intCopied, intVCSInProject, intFileSize) VALUES (" +
-                    intIndex + ", \'F\',\'" + strURI + "\',\'" + strUMID + "\', " + lLength + ", \'" + strName + "\', 0, " + lFileTCOffset + ", \'" + strFileName + "\', 0, 0, 0) ;";
+                    intIndex + ", \'F\',\'" + strFileName + "\',\'" + strUMID + "\', " + lLength + ", \'" + strName + "\', 0, " + lFileTCOffset + ", \'" + strFileName + "\', 0, 0, 0) ;";
                 int i = st.executeUpdate(strSQL);
                 if (i == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -584,5 +601,92 @@ public class jProjectReader_AES31 extends jProjectReader {
         }
         return -1;
 
+    } 
+    /**
+     * Read data from sound files which are referenced in the project if possible.
+     * The sound files can contain useful information such as duration, USID etc.
+     * Files which are written out as part of an AES31 project have to be BWAVs, i.e. they must have a bext chunk.
+     * @param st                This allows the database to be updated.
+     * @param fAudioFolder      This is the folder on the system where the files should be found.
+     * @return                  Return the number of files found.
+     */
+    protected int loadSoundFiles(Statement st, File fAudioFolder) {
+        try {
+            strSQL = "SELECT intIndex, strName, strSourceFile FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+            st = conn.createStatement();
+            ResultSet rs = st.executeQuery(strSQL);
+            String strSourceFile, strName, strUMID;
+            File fLocalSourceFile;
+            long lIndicatedFileSize, lSampleRate, lSourceFileSize, lTimeCodeOffset;
+            double dDuration;
+            int intSourceIndex;
+            while (rs.next()) {
+                // Loop through the SOURCE_INDEX table and try to find out more about each file by reading data from the actual sound file (if we can find it)
+                intSourceIndex = rs.getInt(1);
+                strName = URLDecoder.decode(rs.getString(2), "UTF-8");
+                strSourceFile = URLDecoder.decode(rs.getString(3), "UTF-8");
+                fLocalSourceFile = new File(fAudioFolder, strSourceFile);
+                tempBWFProc = new BWFProcessor();
+                tempBWFProc.setSrcFile(fLocalSourceFile);
+                tempBWFProc.setMultipart(false);
+                if (fLocalSourceFile.exists()) {
+                    System.out.println("Source file " + fLocalSourceFile + " found");
+                } else {
+                    System.out.println("Source file " + fLocalSourceFile + " not found");
+                }
+                if (fLocalSourceFile.exists() && fLocalSourceFile.canRead() && tempBWFProc.readFile(0,fLocalSourceFile.length())) {
+                    lIndicatedFileSize = tempBWFProc.getIndicatedFileSize();
+                    lSampleRate = tempBWFProc.getSampleRate();
+                    dDuration =  tempBWFProc.getDuration();
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + " "
+                            + "WHERE intIndex = " + intSourceIndex + ";";
+                    int i = st.executeUpdate(strSQL);
+                    if (i == -1) {
+                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    }
+                    if (tempBWFProc.getBextTitle().length() == 0) {
+                        tempBWFProc.setBextTitle(strName);
+                    }
+                    if (tempBWFProc.getBextOriginatorRef().length() > 0) {
+                        strUMID = URLEncoder.encode(tempBWFProc.getBextOriginatorRef(), "UTF-8");
+                        strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strUMID = \'" + strUMID + "\' WHERE intIndex = " + intSourceIndex + ";";
+                        i = st.executeUpdate(strSQL);
+                        if (i == -1) {
+                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                        }
+                    } else {
+                        strUMID = jProjectTranslator.getNewUSID();
+                        tempBWFProc.setBextOriginatorRef(strUMID);
+                        strUMID = URLEncoder.encode(strUMID, "UTF-8");
+                        strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strUMID = \'" + strUMID + "\' WHERE intIndex = " + intSourceIndex + ";";
+                        i = st.executeUpdate(strSQL);
+                        if (i == -1) {
+                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                        }
+                    }
+                    if (tempBWFProc.getBextTimeCodeOffset() > 0) {
+                        lTimeCodeOffset = tempBWFProc.getBextTimeCodeOffset();
+                        System.out.println("Timecode ref from source file is " +  lTimeCodeOffset);
+                        strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intTimeCodeOffset = " + lTimeCodeOffset + " WHERE intIndex = " + intSourceIndex + ";";
+                        i = st.executeUpdate(strSQL);
+                        if (i == -1) {
+                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                        }
+                    }
+                    
+                    lBWFProcessors.add(tempBWFProc);
+                    intSoundFilesLoaded++;
+                    setChanged();
+                    notifyObservers();
+                }
+            }    
+                
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        } catch (java.io.UnsupportedEncodingException e) {
+            System.out.println("Error on decoding at " + strSQL + e.toString());
+        }
+        System.out.println(" " + intSoundFilesLoaded + " sound files have been read from source file");
+        return intSoundFilesLoaded;
     }    
 }
