@@ -78,7 +78,9 @@ public class jProjectWriter_AES31 extends jProjectWriter {
 //                }
                 
                 File fTemp = new File(fDestFolder.toString(),strName);
-                URI uriTemp = new URI("file","localhost",fTemp.toString(),null);
+                String strTemp = fTemp.toString();
+                strTemp = strTemp.replaceAll("\\\\", "/");        
+                URI uriTemp = new URI("file","localhost",strTemp,null);
                 String strURI = "URL:" + uriTemp.toString();
                 strURI = URLEncoder.encode(strURI, "UTF-8");
                 strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strURI = \'" + strURI + "\' WHERE intIndex = " + intSourceIndex + ";";
@@ -340,9 +342,18 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                  st = conn.createStatement();
                  rs = st.executeQuery(strSQL);
                  rs.next();
-                 strURI = URLDecoder.decode(rs.getString(1), "UTF-8");
-                 strURI = strURI.substring(20, strURI.length());
-                 fDestFile = new File(strURI);
+                 
+                 
+                 // Get the raw URI string
+                strURI = URLDecoder.decode(rs.getString(1), "UTF-8");
+                // Strip off the leading URL: if it exists
+                if (strURI.startsWith("URL:")) {
+                    strURI = strURI.substring(4, strURI.length());
+                }
+                // Make it in to a URI
+                URI uriTemp = new URI(strURI);
+                strURI = uriTemp.getPath();
+                fDestFile = new File(strURI);
                  if (fDestFile.exists()) {
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = intIndicatedFileSize WHERE strUMID = \'" + strUMID + "\';";
                     //                    System.out.println("SQL " + strSQL);
@@ -382,7 +393,9 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         } catch (java.io.UnsupportedEncodingException e) {
             System.out.println("Error on decoding at " + strSQL + e.toString());
             return false;
-        }        
+        } catch (java.net.URISyntaxException e) {
+            System.out.println("URI encoding exception  " + e.toString());
+        }       
         return true;
     }
         /**
