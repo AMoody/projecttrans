@@ -53,14 +53,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
      * 
      */
     protected boolean writeURIs () {
-//        String strURI = fDestFolder.toString();
-        
-//        strURI = strURI.replaceAll("\\\\", "/");
-//        if (strURI.startsWith("/")) {
-//            strURI = "URL:file://localhost" + strURI;
-//        } else {
-//            strURI = "URL:file://localhost/" + strURI;
-//        }
+
         int intSourceIndex;
         String strName;
         int i;
@@ -71,17 +64,16 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             while (rs.next()) {
                 intSourceIndex = rs.getInt(1);
                 strName = URLDecoder.decode(rs.getString(2), "UTF-8");
-//                if (strURI.endsWith("/")) {
-//                    strName = strURI + strName;
-//                } else {
-//                    strName = strURI + "/" + strName;
-//                }
-                
                 File fTemp = new File(fDestFolder.toString(),strName);
                 String strTemp = fTemp.toString();
-                strTemp = strTemp.replaceAll("\\\\", "/");        
+                strTemp = strTemp.replaceAll("\\\\", "/");
+                if (!strTemp.startsWith("/")) {
+                    strTemp = "/" + strTemp;
+                }
                 URI uriTemp = new URI("file","localhost",strTemp,null);
+                // The new URI function will URL encode the string.
                 String strURI = "URL:" + uriTemp.toString();
+                // URL encode this string to keep bad characters from the database
                 strURI = URLEncoder.encode(strURI, "UTF-8");
                 strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strURI = \'" + strURI + "\' WHERE intIndex = " + intSourceIndex + ";";
                 i = st.executeUpdate(strSQL);
@@ -164,9 +156,12 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             String strOutFade = "";
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
+            // The URI field should not be URL encoded in an AES31 adl file.
             while (rs.next()) {
                 strIndex = String.format("%04d", rs.getInt(1));
                 strURI = URLDecoder.decode(rs.getString(2), "UTF-8");
+                // It has been URL encoded to trap nasty characters from the database
+                strURI = URLDecoder.decode(strURI, "UTF-8");
                 strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
                 strTimeCodeOffset = getADLTimeString(rs.getLong(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strName = URLDecoder.decode(rs.getString(5), "UTF-8");
@@ -342,17 +337,19 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                  st = conn.createStatement();
                  rs = st.executeQuery(strSQL);
                  rs.next();
-                 
-                 
-                 // Get the raw URI string
-                strURI = URLDecoder.decode(rs.getString(1), "UTF-8");
+                // Get the raw URI string
+                strURI = rs.getString(1);
+                // It has been URL encoded to trap nasty characters from the database
+                strURI = URLDecoder.decode(strURI, "UTF-8");
                 // Strip off the leading URL: if it exists
                 if (strURI.startsWith("URL:")) {
                     strURI = strURI.substring(4, strURI.length());
                 }
                 // Make it in to a URI
                 URI uriTemp = new URI(strURI);
-                strURI = uriTemp.getPath();
+                // Use the getPath() method
+                strURI = URLDecoder.decode(uriTemp.getPath(), "UTF-8");
+                // Decode the path and make it in to a file
                 fDestFile = new File(strURI);
                  if (fDestFile.exists()) {
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = intIndicatedFileSize WHERE strUMID = \'" + strUMID + "\';";

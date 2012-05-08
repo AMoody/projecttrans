@@ -504,10 +504,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         strName = strName.substring(0, intEnd);
         strName = strName.replaceAll("[\\/:*?\"<>|]","_");
-        String strURI = strName + ".wav";
+//        String strURI = strName + ".wav";
+        String strURI = ".wav";
         try {
             strName = URLEncoder.encode(strName, "UTF-8");
-            strURI = URLEncoder.encode(strURI, "UTF-8");
+//            strURI = URLEncoder.encode(strURI, "UTF-8");
             strFileName = URLEncoder.encode(strFileName, "UTF-8");
             strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strName, strSourceFile, intCopied, intLength, intFileOffset, intTimeCodeOffset) VALUES (" +
                 intIndex + ", \'F\',\'" + strURI + "\', \'" + strName + "\', \'" + strFileName + "\', 0, 0, 0, 0) ;";

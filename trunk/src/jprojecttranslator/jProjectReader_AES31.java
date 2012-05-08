@@ -340,15 +340,18 @@ public class jProjectReader_AES31 extends jProjectReader {
                 if (strURI.startsWith("URL:")) {
                     strURI = strURI.substring(4, strURI.length());
                 }
+                // The URI field in an AES31 adl file is not URL encoded so we might not be able to decode it with URI unless we URI encode it first, we want to use the getPath() method.
+                strURI = URLEncoder.encode(strURI, "UTF-8");
                 // Make it in to a URI
                 URI uriTemp = new URI(strURI);
+                // Use the getPath() method
                 strURI = uriTemp.getPath();
-                File fTemp = new File(strURI);
+                // Decode the path and make it in to a file
+                File fTemp = new File(URLDecoder.decode(strURI, "UTF-8"));
                 // The source file name is read from the URI
                 strFileName = fTemp.getName();
+                // This is encoded for insertion to the database
                 strFileName = URLEncoder.encode(strFileName, "UTF-8");
-                strURI = URLEncoder.encode(strURI, "UTF-8");
-                
                 lLength = getADLTimeLong(mMatcher.group(5));
                 lFileTCOffset = getADLTimeLong(mMatcher.group(4));
                 intIndex = Integer.parseInt(mMatcher.group(1));
