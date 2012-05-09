@@ -351,6 +351,23 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strURI = URLDecoder.decode(uriTemp.getPath(), "UTF-8");
                 // Decode the path and make it in to a file
                 fDestFile = new File(strURI);
+                // Check that the sample rate of the file is the same as the current project sample rate, if not write the file to a subfolder.
+                if (tempBWFProcessor.getSampleRate() != jProjectTranslator.intProjectSampleRate) {
+                    String strNewFolder = fDestFile.getParent() + "/WRONG_FORMAT";
+                    String strFileName = fDestFile.getName();
+                    File fNewFolder = new File(strNewFolder);
+                    if (fNewFolder.exists()) {
+                        fDestFile = new File(strNewFolder,strFileName);
+                    } else {
+                        if (fNewFolder.mkdir()) {
+                            fDestFile = new File(strNewFolder,strFileName);
+                        } else {
+                            System.out.println("Failed to create subfolder for file with wrong sample rate " + fNewFolder);
+                        }
+                    }
+                    
+                    
+                }
                  if (fDestFile.exists()) {
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = intIndicatedFileSize WHERE strUMID = \'" + strUMID + "\';";
                     //                    System.out.println("SQL " + strSQL);
