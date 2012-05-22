@@ -1,7 +1,3 @@
-/*
- * This is used to open and parse an ardour project file and load
- * the data in to the internal database
- */
 package jprojecttranslator;
 
 import java.io.StringReader;
@@ -503,9 +499,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             intEnd = strName.length();
         }
         strName = strName.substring(0, intEnd);
-        strName = strName.replaceAll("[\\/:*?\"<>|]","_");
-//        String strURI = strName + ".wav";
-        String strURI = ".wav";
+        strName = strName.replaceAll("[\\/:*?\"<>|%]","_");
+        String strURI = strName + ".wav";
+//        String strURI = ".wav";
         try {
             strName = URLEncoder.encode(strName, "UTF-8");
 //            strURI = URLEncoder.encode(strURI, "UTF-8");
