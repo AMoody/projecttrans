@@ -148,7 +148,7 @@ public class jProjectReader_AES31 extends jProjectReader {
                 strCreator = mMatcher.group(1);
                 System.out.println("ADL creator found " + strCreator);
         }
-        Pattern pCrtr = Pattern.compile("\\(VER_CRTR\\)\\s*([\\d|\\.]+)");
+        Pattern pCrtr = Pattern.compile("\\(VER_CRTR\\)\\s*([\\d|\\.|-]+)");
         mMatcher = pCrtr.matcher(strLine);
         if (mMatcher.find()) {
             strCreatorVersion = mMatcher.group(1);
