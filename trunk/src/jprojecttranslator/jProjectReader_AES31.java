@@ -691,5 +691,12 @@ public class jProjectReader_AES31 extends jProjectReader {
         }
         System.out.println(" " + intSoundFilesLoaded + " sound files have been read from source file");
         return intSoundFilesLoaded;
-    }    
+    }  
+    @Override
+    public String getInfoText() {
+        return "<b>AES31</b><br>"
+                + "This importer will read an .adl (Audio Decision List) file which contains the EDL.<br>"
+                + "If the required audio files have been found these will be read to acquire additional information.<br>"
+                + "<br>";
+    }
 }
