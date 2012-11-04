@@ -1,20 +1,14 @@
 package jprojecttranslator;
-/*
- * chunk.java
- *
- * Created on 09 September 2005, 17:26
- */
-
+import java.nio.*;
 /**
  * This represents a chunk which would be part of a RIFF file.
  * The constructor takes a ByteBuffer object and starts at the beginning
  * The first four bytes are the ascii code for this chunk.
  * The next four bytes are a little endian representation of the total length of the data
  * The next bytes are the actual data, the format depends on the type of chunk.
+ * Created on 09 September 2005 
  * @author  moodya71
  */
-
-import java.nio.*;
 public class chunk {
     private String ckID;
     private int ckSIZE;

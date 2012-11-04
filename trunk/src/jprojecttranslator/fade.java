@@ -1,8 +1,3 @@
-/*
- * This stores information about an audio fade.
- * A fade consists of a duration in samples and some curve data.
- * A fade can be an in fade or an out fade
- */
 package jprojecttranslator;
 import org.dom4j.Element;
 import java.util.*;
@@ -12,6 +7,9 @@ import net.sourceforge.openforecast.Observation;
 import net.sourceforge.openforecast.Forecaster;
 import net.sourceforge.openforecast.ForecastingModel;
 /**
+ * This stores information about an audio fade.
+ * A fade consists of a duration in samples and some curve data.
+ * A fade can be an in fade or an out fade
  *
  * @author scobeam
  */
@@ -20,7 +18,7 @@ public class fade {
     private long lLength; 
     private String strFade;
     /**
-     * Load a FadeIn or FadeOut from an Ardour project file in to the database.
+     * Load a FadeIn or FadeOut from an Ardour project file.
      * Crossfades in Ardour consist of a FadeIn and FadeOut.
      * Ardour fades consist of a number of fade levels at certain time offsets in samples.
      * In the AES31 adl file we need three fade levels at 25% 50% and 75% across the fade.
@@ -113,7 +111,7 @@ public class fade {
         
     }
     /**
-     * Load a fade from an Ardour project file in to the database.
+     * Load a fade from an Ardour project file.
      * Ardour fades consist of a number of fade levels at certain time offsets in samples.
      * In the AES31 adl file we need three fade levels at 25% 50% and 75% across the fade.
      * We will use some numerical analysis from the openforecast package to find suitable values.

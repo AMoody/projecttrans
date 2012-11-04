@@ -4,17 +4,19 @@ package jprojecttranslator;
  *
  * Created on 09 September 2005, 19:51
  */
-
-/**
- * A general purpose handler for BWF files.
- * @author  moodya71
- */
 import java.io.*;
 import java.util.*;
 import java.nio.*;
 import java.nio.channels.FileChannel;
 import java.util.Observable;
-
+/**
+ * A general purpose handler for BWF files.
+ * @author  arth
+ * If both a source and destination file is specified it can copy and modify a bwav file. 
+ * Chunk sizes are recalculated
+ * A bext chunk can be read, modified, created etc.
+ * If only a source file is specified it allows you to read metadata from the various chunks including the bext chunk if it exists
+ */
 public class BWFProcessor extends Observable implements Runnable {
     private long lSourceFileStart = 0;
     private long lSourceFileEnd = 0;
@@ -80,7 +82,11 @@ public class BWFProcessor extends Observable implements Runnable {
     
     
     
-    /** Creates a new instance of BWFProcessor */
+    /**
+     * Creates a new instance of BWFProcessor
+     * @param setSrcFile Sets the source file which will be read
+     * @param setDestFile Sets the destination file which will be written
+     */
     public BWFProcessor(File setSrcFile, File setDestFile) {
         objectCount++;
 
@@ -145,7 +151,11 @@ public class BWFProcessor extends Observable implements Runnable {
         status = 1;
         lastActivity = System.currentTimeMillis()/1000;
     }
-    /** Alternate constructor for use when a destination file is not written.*/
+    /**
+     * Alternate constructor for use when a destination file is not written.
+     * @param setSrcFile Sets the source file which will be read
+     * Use this constructor if you only need to read metadata from a file
+     */
     public BWFProcessor(File setSrcFile) {
         objectCount++;
         readOnly = true;
@@ -253,14 +263,14 @@ public class BWFProcessor extends Observable implements Runnable {
     }
     /**
      * Find the details of the source file.
-     * @return A file object representing the source file.
+     * @return A String representing the source file.
      */
     public String getSrcFile(){
         return srcFile.toString();
     }
     /**
      * Find the details of the destination file.
-     * @return A file object representing the destination file.
+     * @return A String representing the destination file.
      */
     public String getDestFile(){
         return destFile.toString();
@@ -308,7 +318,7 @@ public class BWFProcessor extends Observable implements Runnable {
      * It is possible to read audio data from a file which contains multiple riff wave files stacked end to end.
      * @param setSourceFileStart    This is an offset in bytes where the start of the riff wave file should be.
      * @param setSourceFileEnd      This is an offset in bytes where the end of the riff wave file should be.
-     * @return 
+     * @return true if file was read successfully
      */
     public boolean readFile(long setSourceFileStart, long setSourceFileEnd) {
         if (bMultipart) {
@@ -609,12 +619,11 @@ public class BWFProcessor extends Observable implements Runnable {
             while (lBytePointer<lEndByte) {
                 
                 try {
-                    Thread.sleep(Main.randomNumber.nextInt(200) + 100); // Sleep for about 0.3s
-                    // Thread.sleep(Main.randomNumber.nextInt(200) + 500 +(lEndByte/600000)); // Sleep for about 0.6 plus 1s per 600M file size
+                    Thread.sleep(jProjectTranslator.randomNumber.nextInt(200) + 100); // Sleep for about 0.3s
                 } catch (InterruptedException e) {
                     System.out.println("Sleep interrupted." );            
                 } 
-                synchronized(Main.randomNumber) {
+                synchronized(jProjectTranslator.randomNumber) {
                     // There is only one of those objects so this code can only be excecuted by one thread at a time.
 
                     if (lEndByte-lBytePointer<5000000) {
@@ -803,6 +812,29 @@ public class BWFProcessor extends Observable implements Runnable {
                 }
                 
                 
+            }
+        }
+        return 0;
+    }
+    /**
+     * Returns the number of audio channels which are indicated by the fmt chunk
+     * For a stereo file this will be 2, mono will be 1 a polywav could have more than 2
+     * @return The number of audio channels.
+     */
+    public int getNoOfChannels() {
+        chunkIterator = startChunks.iterator();
+        chunk tempChunk;
+        int intChannels, intSampleRate, intByteRate;
+        while (chunkIterator.hasNext()){
+            tempChunk = (chunk)chunkIterator.next();
+            // Is this the fmt chunk?
+            if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
+                // Yes we have found the fmt chunk.
+                ByteBuffer byteData = tempChunk.getBytes();
+                byteData.order(ByteOrder.LITTLE_ENDIAN);
+                byteData.position(10);
+                intChannels = byteData.getShort();
+                return intChannels;
             }
         }
         return 0;

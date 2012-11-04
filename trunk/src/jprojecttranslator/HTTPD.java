@@ -1,16 +1,11 @@
-/*
- * This is just used to subclass the NanoHTTPD code so I can
- * override the serve method and add some private methods to generate customised
- * pages.
- */
-
 package jprojecttranslator;
 import java.io.*;
 import java.util.*;
 
 
 /**
- *
+ * Subclass of the NanoHTTPD code so I can override the serve method
+ * Also  add some private methods to generate customised pages.
  * @author scobeam
  */
 public class HTTPD extends NanoHTTPD {
@@ -19,10 +14,10 @@ public class HTTPD extends NanoHTTPD {
         super (setPort,new File(""));
     }
     /**
-     * @parm uri	Percent-decoded URI without parameters, for example "/index.cgi"
-     * @parm method	"GET", "POST" etc.
-     * @parm parms	Parsed, percent decoded parameters from URI and, in case of POST, data.
-     * @parm header	Header entries, percent decoded
+     * @param uri	Percent-decoded URI without parameters, for example "/index.cgi"
+     * @param method	"GET", "POST" etc.
+     * @param parms	Parsed, percent decoded parameters from URI and, in case of POST, data.
+     * @param header	Header entries, percent decoded
      * @return HTTP response, see class Response for details
      * public Response serve( String uri, String method, Properties header, Properties parms, Properties files )
      */

@@ -51,7 +51,8 @@ public class database {
                     "strType VARCHAR(4), strURI VARCHAR(256), strUMID VARCHAR(64), intLength BIGINT NOT NULL, strName VARCHAR(256),"
                     + " intFileOffset BIGINT NOT NULL, intTimeCodeOffset BIGINT NOT NULL, strSourceFile VARCHAR(256),"
                     + " strDestFileName VARCHAR(256), intCopied BIGINT DEFAULT 0, intIndicatedFileSize BIGINT DEFAULT 0,"
-                    + " intSampleRate BIGINT DEFAULT 0, dDuration DOUBLE DEFAULT 0, intVCSInProject INT, intFileSize BIGINT," +
+                    + " intSampleRate BIGINT DEFAULT 0, dDuration DOUBLE DEFAULT 0, intVCSInProject INT, intFileSize BIGINT,"
+                    + " intArdourChannel INT, intChannels INT, " +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
