@@ -3,18 +3,15 @@ import java.util.*;
 import java.io.*;
 import java.net.URL;
 /**
- * <b><p>Description:</b><br>
  * JIniFile stores and retrieves application-specific information and settings from INI files.
- * <br><br>
  * JIniFile enables handling the storage and retrieval of application-specific information
  * and settings in a standard INI file. The INI file text format is a standard introduced
  * in Windows 3.x for storing and retrieving application settings from session to session.
  * An INI file stores information in logical groupings, called "sections." For example,
  * the WIN.INI file contains a section called "[Desktop]". Within each section, actual data
  * values are stored in named keys. Keys take the form:
- * <br><br>
- * &lt;keyname&gt;=&lt;value&gt;<br>
- * A FileName is passed to the JIniFile constructor and identifies the INI file that the object accesses.</p>
+ * &lt;keyname&gt;=&lt;value&gt;
+ * A FileName is passed to the JIniFile constructor and identifies the INI file that the object accesses.
  * @author Andreas Norman
  * @version 1.0
  *
@@ -27,8 +24,7 @@ public class JIniFile extends ArrayList {
    *
    * Creates a JIniFile object for an application. Create assigns the FileName parameter
    * to the FileName property, which is used to specify the name of the INI file to use.
-   * <p>
-   * <b>Note:</b> By default the INI files are stored in the Application directory. To work with an INI file in another
+   * Note: By default the INI files are stored in the Application directory. To work with an INI file in another
    *              location, specify the full path name of the file in FileName.
    */
   public JIniFile(String FileName) {

@@ -622,7 +622,7 @@ public class jProjectReader_AES31 extends jProjectReader {
             File fLocalSourceFile;
             long lIndicatedFileSize, lSampleRate, lSourceFileSize, lTimeCodeOffset;
             double dDuration;
-            int intSourceIndex;
+            int intSourceIndex, intChannels;
             while (rs.next()) {
                 // Loop through the SOURCE_INDEX table and try to find out more about each file by reading data from the actual sound file (if we can find it)
                 intSourceIndex = rs.getInt(1);
@@ -641,7 +641,8 @@ public class jProjectReader_AES31 extends jProjectReader {
                     lIndicatedFileSize = tempBWFProc.getIndicatedFileSize();
                     lSampleRate = tempBWFProc.getSampleRate();
                     dDuration =  tempBWFProc.getDuration();
-                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + " "
+                    intChannels = tempBWFProc.getNoOfChannels();
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + ", intCHannels = " + intChannels + " "
                             + "WHERE intIndex = " + intSourceIndex + ";";
                     int i = st.executeUpdate(strSQL);
                     if (i == -1) {

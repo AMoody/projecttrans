@@ -233,8 +233,8 @@ public class jProjectWriter_AES31 extends jProjectWriter {
      * If an invalid frame rate is supplied it defaults to 25
      * These are standard across most of the world.
      * @param lSamples This is a long with the sample count to be converted.
-     * @param intPreferredSampleRate This is the sample rate, only 44100 and 48000 are valid, 48000 is the default.
-     * @param fFrameRate This is a float with the frame rate, only 24, 25, 30 and 29.97 are valid numbers, 25 is the default.
+     * @param intSampleRate This is the sample rate, only 44100 and 48000 are valid, 48000 is the default.
+     * @param dFrameRate This is a double with the frame rate, only 24, 25, 30 and 29.97 are valid numbers, 25 is the default.
      * @return Returns a formatted string representing the time in ADL format. See AES31 specs for more information.
      */
     public static String getADLTimeString (long lSamples, int intSampleRate, double dFrameRate) {

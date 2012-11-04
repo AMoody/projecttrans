@@ -30,17 +30,18 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         /*
      * This returns a FileFilter which this class can read
      */
+    @Override
     public javax.swing.filechooser.FileFilter getFileFilter() {
         javax.swing.filechooser.FileFilter filter = new FileNameExtensionFilter("Ardour (.ardour)", "ardour");
         return filter;
     }
-    
+    @Override
     protected boolean processProject() {
         System.out.println("ARDOUR writer thread running");
         /** Ardour requires ID numbers for each element in the file, calculate these numbers first */
-        // updateIDNumbers();
+        updateIDNumbers();
         /**
-        * Next step is to create an ADL file and write the output.
+        * Next step is to create an ardour file and write the output.
         */
         writeARDOURFile(fDestFile, st);
         oProjectTranslator.writeStringToPanel("Ardour project file written");
@@ -59,8 +60,10 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         xmlRoot.addAttribute("sample-rate", "" + jProjectTranslator.intProjectSampleRate);
         Element xmlConfig = xmlRoot.addElement("Config");
         fillConfigElement(xmlConfig);
+        Element xmlRegions = xmlRoot.addElement("Regions");
         Element xmlSources = xmlRoot.addElement("Sources");
-        fillSourcesElement(xmlSources);
+        fillRegionsandSourcesElement(xmlRegions, xmlSources);
+        
         Element xmlDiskStreams = xmlRoot.addElement("DiskStreams");
         fillDiskStreamsElement(xmlDiskStreams);
         strSQL = "SELECT strTitle FROM PUBLIC.PROJECT;";
@@ -105,13 +108,63 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         xmlConfig.addElement("end-marker-is-free").addAttribute("val", "yes");
     }
     
-    private void fillSourcesElement(Element xmlSources){
-        
+    private void fillRegionsandSourcesElement(Element xmlRegions, Element xmlSources){
+        /** The regions and sources elements are closely related
+         * We will fill them together.
+         * These regions are in the region list, they might also be in the playlist (edl)
+         * but we will create new regions entries for this.
+         * Firstly we need to know how many audio tracks each region sound file has.
+         */
+        try {
+            strSQL = "SELECT intIndex, strName, intChannels, intLength FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+            st = conn.createStatement();
+            ResultSet rs = st.executeQuery(strSQL);
+            String strName;
+            int intSourceIndex, intChannels;
+            long lLength;
+            Element xmlRegion;
+            while (rs.next()) {
+                intSourceIndex = rs.getInt(1);
+                strName = URLDecoder.decode(rs.getString(2), "UTF-8");
+                intChannels = rs.getInt(3);
+                lLength = rs.getLong(4);
+                xmlRegion = xmlRegions.addElement("Region");
+                xmlRegion.addAttribute("id", "" + intSourceIndex).addAttribute("name", strName);
+                xmlRegion.addAttribute("start", "0").addAttribute("length", "" + lLength);
+                xmlRegion.addAttribute("position", "0").addAttribute("ancestral-start", "0");
+                xmlRegion.addAttribute("ancestral-length", "0").addAttribute("stretch", "1");
+                xmlRegion.addAttribute("shift", "1").addAttribute("channels", "" + intChannels);
+            }
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        } catch (java.io.UnsupportedEncodingException e) {
+            System.out.println("Error on URL decode " + e.toString());
+        }
     }
     
     private void fillDiskStreamsElement(Element xmlDiskStreams){
+        // First we need to know how many tracks there are in the 
+        // playlist by looking at the regions maps.
         String strID = "" + intIdCounter++;
         xmlDiskStreams.addElement("AudioDiskstream").addAttribute("flags", "Recordable").addAttribute("id", strID);
+    }
+    
+    private void updateIDNumbers() {
+        // Start by getting the max number from the SOURCE_INDEX table.
+        ResultSet rs;
+        strSQL = "SELECT MAX(intIndex) FROM PUBLIC.SOURCE_INDEX;";
+        try {
+            st = conn.createStatement();
+            rs = st.executeQuery(strSQL);
+            rs.next();
+            if (!(rs.wasNull()) ) {
+                intIdCounter = rs.getInt(1) + 10;
+            }
+                        
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+            
+        } 
     }
     
 }

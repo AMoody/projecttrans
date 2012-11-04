@@ -36,6 +36,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * This returns a FileFilter which shows the files this class can read
      * @return FileFilter
      */
+    @Override
     public javax.swing.filechooser.FileFilter getFileFilter() {
         javax.swing.filechooser.FileFilter filter = new FileNameExtensionFilter("Ardour (.ardour)", "ardour");
         return filter;
@@ -44,6 +45,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * This loads up an Ardour xml project in to the database.
      * @return      True if the project was loaded.
      */
+    @Override
     protected boolean processProject() {
         dtsCreated = new DateTime(fSourceFile.lastModified(), DateTimeZone.getDefault());
         intSoundFilesLoaded = 0;
@@ -99,9 +101,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             ResultSet rs = st.executeQuery(strSQL);
             String strSourceFile, strName, strUMID;
             File fLocalSourceFile;
-            long lIndicatedFileSize, lSampleRate, lSourceFileSize, lTimeCodeOffset;
-            double dDuration;
-            int intSourceIndex;
+            long lIndicatedFileSize, lSampleRate, lTimeCodeOffset;
+            double dDuration, dSourceSamples;
+            int intSourceIndex, intChannels;
             while (rs.next()) {
                 // Loop through the SOURCE_INDEX table and try to find out more about each file by reading data from the actual sound file (if we can find it)
                 intSourceIndex = rs.getInt(1);
@@ -120,7 +122,10 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                     lIndicatedFileSize = tempBWFProc.getIndicatedFileSize();
                     lSampleRate = tempBWFProc.getSampleRate();
                     dDuration =  tempBWFProc.getDuration();
-                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + " "
+                    intChannels = tempBWFProc.getNoOfChannels();
+                    dSourceSamples = tempBWFProc.getNoOfSamples()/intChannels;
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + ", "
+                            + "intChannels = " + intChannels + ", intLength = " + dSourceSamples + " "
                             + "WHERE intIndex = " + intSourceIndex + ";";
                     int i = st.executeUpdate(strSQL);
                     if (i == -1) {
@@ -175,7 +180,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     
     /**
      * 
-     * This method parses the xml fields from the VCS project and adds the
+     * This method parses the xml fields from the .ardour file and adds the
      * information to the database.
      * @param setRoot   This is the root element in the xml file.
      * @return          Return true if the file was parsed.
@@ -446,10 +451,16 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         for(int i=1; i<intChannelCount + 1; i++){
             strDestChannel = "" + (i + intMapOffset - 1);
-            strTrackMap = strSourceChannel + " " + strDestChannel;
             intSourceIndex = Integer.parseInt(xmlRegion.attributeValue("source-" + (i-1)));
-            
             try {
+                strSQL = "SELECT intArdourChannel FROM PUBLIC.SOURCE_INDEX WHERE intIndex = " + intSourceIndex + ";";
+                st = conn.createStatement();
+                ResultSet rs = st.executeQuery(strSQL);
+                rs.next();
+                if (!(rs.wasNull()) ) {
+                    strSourceChannel = "" + (rs.getInt(1) + 1);
+                }
+                strTrackMap = strSourceChannel + " " + strDestChannel;
                 strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
                         + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, intTrackIndex, bOpaque) VALUES (" +
                     intClipCounter++ + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
@@ -501,13 +512,14 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         strName = strName.substring(0, intEnd);
         strName = strName.replaceAll("[\\/:*?\"<>|%]","_");
         String strURI = strName + ".wav";
+        int intChannel = Integer.parseInt(xmlSource.attributeValue("channel"));
 //        String strURI = ".wav";
         try {
             strName = URLEncoder.encode(strName, "UTF-8");
 //            strURI = URLEncoder.encode(strURI, "UTF-8");
             strFileName = URLEncoder.encode(strFileName, "UTF-8");
-            strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strName, strSourceFile, intCopied, intLength, intFileOffset, intTimeCodeOffset) VALUES (" +
-                intIndex + ", \'F\',\'" + strURI + "\', \'" + strName + "\', \'" + strFileName + "\', 0, 0, 0, 0) ;";
+            strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strName, strSourceFile, intCopied, intLength, intFileOffset, intTimeCodeOffset, intArdourChannel) VALUES (" +
+                intIndex + ", \'F\',\'" + strURI + "\', \'" + strName + "\', \'" + strFileName + "\', 0, 0, 0, 0," + intChannel + ") ;";
             int i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -610,6 +622,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         
 
     }
+        @Override
         public String getInfoText() {
         return "<b>Ardour</b><br>"
                 + "This importer can read .ardour files which contain the EDL, it should then be able to find the associated audio. "

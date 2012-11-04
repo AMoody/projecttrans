@@ -38,8 +38,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     /** We need to retain a reference to the window when we create it so we can
      *access the objects it contains. This is it.*/
     static jProjectTranslator ourWindow;
-    /** <p>This is a static random number generator for this class, all objects share the generator.<br>
-     * As this is public, other objects can also use it.</p>
+    /** This is a static random number generator for this class, all objects share the generator.
+     * As this is public, other objects can also use it.
      */
     public static Random randomNumber = new Random();
     /** This is a source file to be loaded. */
