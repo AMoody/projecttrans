@@ -73,7 +73,7 @@ public class jPreferences extends javax.swing.JDialog {
         jLabel3.setText("Xfade length");
 
         jTextField1.setText("200");
-        jTextField1.setToolTipText("Crossfade length in samples");
+        jTextField1.setToolTipText("Crossfade length in milliseconds");
 
         jLabel4.setText("Hz");
 
