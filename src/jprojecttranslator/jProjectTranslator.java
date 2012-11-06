@@ -71,6 +71,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     private List listRecentActivityStrings = new ArrayList(intMessageQueueLength);
     private soundFilesTableModel ourTableModel = new soundFilesTableModel();
     private static String strLastFileOpenFilter = "";
+    private static String strLastFileSaveAsFilter = "";
     final static ResourceBundle rbProject = ResourceBundle.getBundle("jprojecttranslator.version"); 
     protected static String strBuild;
     protected static final String strVersion = "0.1";
@@ -213,10 +214,16 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         });
 
         jToolBar1.setRollover(true);
+        jToolBar1.setMinimumSize(new java.awt.Dimension(139, 32));
+        jToolBar1.setPreferredSize(new java.awt.Dimension(139, 32));
 
-        jButton1.setText("Open");
+        jButton1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jprojecttranslator/Gnome-document-open.png"))); // NOI18N
+        jButton1.setToolTipText("Open");
         jButton1.setFocusable(false);
         jButton1.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
+        jButton1.setMaximumSize(new java.awt.Dimension(48, 32));
+        jButton1.setMinimumSize(new java.awt.Dimension(48, 32));
+        jButton1.setPreferredSize(new java.awt.Dimension(48, 32));
         jButton1.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
         jButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -225,9 +232,13 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         });
         jToolBar1.add(jButton1);
 
-        jButton2.setText("Save As");
+        jButton2.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jprojecttranslator/Gnome-document-save-as.png"))); // NOI18N
+        jButton2.setToolTipText("Save As");
         jButton2.setFocusable(false);
         jButton2.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
+        jButton2.setMaximumSize(new java.awt.Dimension(48, 32));
+        jButton2.setMinimumSize(new java.awt.Dimension(48, 32));
+        jButton2.setPreferredSize(new java.awt.Dimension(48, 32));
         jButton2.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
         jButton2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -236,9 +247,13 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         });
         jToolBar1.add(jButton2);
 
-        jButton3.setText("Exit");
+        jButton3.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jprojecttranslator/Gnome-application-exit.png"))); // NOI18N
+        jButton3.setToolTipText("Exit");
         jButton3.setFocusable(false);
         jButton3.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
+        jButton3.setMaximumSize(new java.awt.Dimension(48, 32));
+        jButton3.setMinimumSize(new java.awt.Dimension(48, 32));
+        jButton3.setPreferredSize(new java.awt.Dimension(48, 32));
         jButton3.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
         jButton3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -316,9 +331,11 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                     .addContainerGap()))
         );
 
+        jMenu1.setMnemonic('f');
         jMenu1.setText("File");
 
         jMenuItem1.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, java.awt.event.InputEvent.CTRL_MASK));
+        jMenuItem1.setMnemonic('o');
         jMenuItem1.setText("Open");
         jMenuItem1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -328,6 +345,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenu1.add(jMenuItem1);
 
         jMenuItem2.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.CTRL_MASK));
+        jMenuItem2.setMnemonic('v');
         jMenuItem2.setText("Save As");
         jMenuItem2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -336,6 +354,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         });
         jMenu1.add(jMenuItem2);
 
+        jMenuItem4.setMnemonic('p');
         jMenuItem4.setText("Preferences");
         jMenuItem4.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -345,6 +364,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenu1.add(jMenuItem4);
 
         jMenuItem3.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Q, java.awt.event.InputEvent.CTRL_MASK));
+        jMenuItem3.setMnemonic('x');
         jMenuItem3.setText("Exit");
         jMenuItem3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -355,8 +375,10 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
         jMenuBar1.add(jMenu1);
 
+        jMenu2.setMnemonic('h');
         jMenu2.setText("Help");
 
+        jMenuItem5.setMnemonic('a');
         jMenuItem5.setText("About");
         jMenuItem5.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -365,6 +387,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         });
         jMenu2.add(jMenuItem5);
 
+        jMenuItem6.setMnemonic('l');
         jMenuItem6.setText("Licence");
         jMenuItem6.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -403,7 +426,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(jToolBar1, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jToolBar1, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel1)
@@ -436,6 +459,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dPreferredFrameRate));
         usersIniFile.WriteString("General", "CurrentPath", fPath.toString());
         usersIniFile.WriteString("General", "LastFileOpenFilter", strLastFileOpenFilter);
+        usersIniFile.WriteString("General", "LastFileSaveAsFilter", strLastFileSaveAsFilter);
         usersIniFile.UpdateFile();
         System.exit(0);        
     }
@@ -497,11 +521,28 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         }
         Iterator itr = listWriters.iterator(); 
         jProjectWriter tempProjectWriter;
+        
+        javax.swing.filechooser.FileFilter tempFileFilter = null;
         while(itr.hasNext()) {
-            // fc.addChoosableFileFilter( ((javax.swing.filechooser.FileFilter)(itr.next())) );
             tempProjectWriter = (jProjectWriter)(itr.next());
-            fc.addChoosableFileFilter( tempProjectWriter.getFileFilter() );
+//            fc.addChoosableFileFilter( tempProjectReader.getFileFilter() );
+            if (tempProjectWriter.getFileFilter().getDescription().equalsIgnoreCase(strLastFileSaveAsFilter)) {
+                tempFileFilter = tempProjectWriter.getFileFilter();
+            } else {
+                fc.addChoosableFileFilter( tempProjectWriter.getFileFilter() );
+            }
+            
         }
+        if (tempFileFilter instanceof javax.swing.filechooser.FileFilter) {
+            fc.setFileFilter(tempFileFilter);
+        }
+        
+        
+//        while(itr.hasNext()) {
+//            // fc.addChoosableFileFilter( ((javax.swing.filechooser.FileFilter)(itr.next())) );
+//            tempProjectWriter = (jProjectWriter)(itr.next());
+//            fc.addChoosableFileFilter( tempProjectWriter.getFileFilter() );
+//        }
         if (!(fc.showSaveDialog(this) == javax.swing.JFileChooser.APPROVE_OPTION)) {
             return;
         }
@@ -521,7 +562,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             }
         }
         System.out.println("The chosen file was " + file);
-        System.out.println("The chosen file filter was " + fc.getFileFilter());
+        strLastFileSaveAsFilter = fc.getFileFilter().getDescription();
+        System.out.println("The chosen file filter was " + strLastFileSaveAsFilter);
         itr = listWriters.iterator();
         while(itr.hasNext()) {
             tempProjectWriter = (jProjectWriter)(itr.next());
@@ -563,6 +605,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 + "A program to translate audio editing projects from "
                 + "one format to another. "
                 + "<br>Copyright © 2011-2012  Arthur Moody"
+                + "<br>Source code is available from here, https://sourceforge.net/projects/projecttrans"
                 + "<br><br>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by "
                 + "the Free Software Foundation, either version 3 of the License, or (at your option) any later version."
                 + "<br><br>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of "
@@ -649,6 +692,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         intPreferredXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",960);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         strLastFileOpenFilter = usersIniFile.ReadString("General","LastFileOpenFilter","");
+        strLastFileSaveAsFilter = usersIniFile.ReadString("General","LastFileSaveAsFilter","");
         
         if (intHTTPPort > 0) {
             try {
