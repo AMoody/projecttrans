@@ -37,9 +37,9 @@ public class HTTPD extends NanoHTTPD {
         } else {
             msg = "<html>" +
                 "<head>" +
-                "<title>jFileTransfer</title>" +
+                "<title>jProjectTranslator</title>" +
                 "</head><body>" +
-                "<h1>jFileTransfer</h1>" +
+                "<h1>jProjectTranslator</h1>" +
                 "</body></html>";
         }
         return new Response( HTTP_OK, MIME_HTML, msg );
@@ -80,7 +80,7 @@ public class HTTPD extends NanoHTTPD {
                 "    padding-right: 20px;" +
                 "}\n" +
                 "</style>\n" +
-                "<title>jFileTransfer</title></head>\n";
+                "<title>jProjectTranslator</title></head>\n";
         /**
          * This generates the html when the browser requests debug.html
          * @param parms This is a list of paramaters supplied from the browser
@@ -107,10 +107,11 @@ public class HTTPD extends NanoHTTPD {
                     "<li><a href=\"debug.html?Table=VERSION\" name=\"VERSION\">VERSION</a></li>\n" +
                     "<li><a href=\"debug.html?Table=SYSTEM\" name=\"SYSTEM\">SYSTEM</a></li>\n" +
                     "<li><a href=\"debug.html?Table=TRACKS\" name=\"TRACKS\">TRACKS</a></li>\n" +
+                    "<li><a href=\"debug.html?Table=ARDOUR_SOURCES\" name=\"ARDOUR_SOURCES\">ARDOUR_SOURCES</a></li>\n" +
                     "</ul></div>\n" +
                     "<div id=\"table\">" + strTableData +
                     "</div>\n</body></html>";
-
+            
             return msg;
 
         }

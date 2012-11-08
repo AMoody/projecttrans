@@ -98,6 +98,21 @@ public class database {
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
             }
+            /**
+             * Create the ARDOUR_SOURCES table
+             * This is used to create the Source elements in the Ardour xml file
+             * intIndex         Index number of source
+             * intParentIndex   Index number of Region in the region list to which this belongs, actually the intIndex field of the SOURCE_INDEX table
+             * intChannel       The audio channel in the source file to which this source refers
+             * 
+             */
+            strSQL = "CREATE TABLE PUBLIC.ARDOUR_SOURCES (intIndex INTEGER NOT NULL," +
+                    "intParentIndex INTEGER, intChannel INTEGER, " +
+                    "PRIMARY KEY (intIndex));";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL);
+            }
             // Create the PROJECT table
             strSQL = "CREATE TABLE PUBLIC.PROJECT (intIndex INTEGER NOT NULL," +
                     "strTitle VARCHAR(256), strNotes VARCHAR(512), dtsCreated DATETIME, strOriginator VARCHAR(512), strClientData VARCHAR(512), " +
