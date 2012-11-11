@@ -256,7 +256,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             intPrunedTracks = pruneLowerTracks(st);
             intCounter++;
             
-        } while (intPrunedTracks > 0 && intCounter < 25000);
+        } while (intPrunedTracks > 0 && intCounter < 50);
         return true;
     }
     /**
@@ -533,20 +533,21 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     }
     protected int pruneLowerTracks(Statement st) {
         strSQL = "SELECT intIndex, intDestIn, intDestOut, intLayer, intTrackIndex FROM PUBLIC.EVENT_LIST WHERE bOpaque = \'Y\' ORDER BY intLayer DESC;";
-        int intPrunedTracks, intIndex, intDestIn, intDestOut, intLayer, intTrackIndex;
+        int intPrunedTracks, intIndex, intLayer, intTrackIndex;
+        long lDestIn, lDestOut;
         intPrunedTracks = 0;
         try {
             ResultSet rs = st.executeQuery(strSQL);
             while (rs.next()) {
                 // Look for any underlying regions
                 intIndex = rs.getInt(1);
-                intDestIn = rs.getInt(2);
-                intDestOut = rs.getInt(3);
+                lDestIn = rs.getLong(2);
+                lDestOut = rs.getLong(3);
                 intLayer = rs.getInt(4);
                 intTrackIndex = rs.getInt(5);
                 strSQL = "SELECT COUNT(*) FROM PUBLIC.EVENT_LIST WHERE "
-                        + "intDestIn <= " + intDestIn + "AND "
-                        + "intDestOut >= " + intDestOut + "AND "
+                        + "intDestIn <= " + lDestIn + "AND "
+                        + "intDestOut >= " + lDestOut + "AND "
                         + "intLayer < " + intLayer + "AND "
                         + "intTrackIndex = " + intTrackIndex + ";";
                 ResultSet rs2 = st.executeQuery(strSQL);
@@ -555,13 +556,13 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                     intPrunedTracks++;
                     System.out.println("" + rs2.getInt(1) + " overlapping regions found under region " + intIndex );
                     strSQL = "SELECT intIndex FROM PUBLIC.EVENT_LIST WHERE "
-                        + "intDestIn <= " + intDestIn + "AND "
-                        + "intDestOut >= " + intDestOut + "AND "
+                        + "intDestIn <= " + lDestIn + "AND "
+                        + "intDestOut >= " + lDestOut + "AND "
                         + "intLayer < " + intLayer + "AND "
                         + "intTrackIndex = " + intTrackIndex + ";";
                     rs2 = st.executeQuery(strSQL);
                     while (rs2.next()) {
-                        splitRegion(rs2.getInt(1), intDestIn, intDestOut, st);
+                        splitRegion(rs2.getInt(1), lDestIn, lDestOut, st);
                     }
                 }
             }
@@ -570,7 +571,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         return intPrunedTracks;
     }
-    protected void splitRegion(int intIndex, int intDestIn, int intDestOut, Statement st) {
+    protected void splitRegion(int intIndex, long lDestIn, long lDestOut, Statement st) {
         int i, intLastIndex;
         try {
             // We need to duplicate the region first, the copy will be the end region.
@@ -585,14 +586,22 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
             }
             // Truncate the newly created end region and give in a valid index number
-            strSQL = "UPDATE PUBLIC.EVENT_LIST2 SET intIndex = " + intLastIndex + ", intDestIn = " + intDestOut + ", intInFade = 0, strInFade = \'\';";
+            // First we need to find the current value of the intDestIn point as the intSourceIn point needs to move too.
+            strSQL = "SELECT intSourceIn FROM PUBLIC.EVENT_LIST2 WHERE intIndex = " + intIndex + ";";
+            rs = st.executeQuery(strSQL);
+            rs.next();
+            long lOldDestIn = rs.getLong(1);
+            // Now we can move the in point of the end region to lDestOut, that's the new in point.
+            strSQL = "UPDATE PUBLIC.EVENT_LIST2 SET intIndex = "
+                    + "" + intLastIndex + ", intDestIn = " + lDestOut + ", intSourceIn = intSourceIn  + " + (lDestOut - lOldDestIn) + ", " 
+                    + "intInFade = 0, strInFade = \'\';";
 //            System.out.println("SQL is " + strSQL);
             i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
             }
             // Now to truncate the start region.
-            strSQL = "UPDATE PUBLIC.EVENT_LIST SET intDestOut = " + intDestIn + ", intOutFade = 0, strOutFade = \'\' WHERE intIndex = " + intIndex + ";";
+            strSQL = "UPDATE PUBLIC.EVENT_LIST SET intDestOut = " + lDestIn + ", intOutFade = 0, strOutFade = \'\' WHERE intIndex = " + intIndex + ";";
 //            System.out.println("SQL is " + strSQL);
             i = st.executeUpdate(strSQL);
             if (i == -1) {

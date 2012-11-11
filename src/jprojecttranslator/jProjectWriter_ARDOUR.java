@@ -557,6 +557,10 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
             strChannelInputString = strChannelInputString + "{}";
             
         }
+        // Always have a minimum of two outputs from a channel even if it's mono.
+        if (intChannels == 1) {
+            strChannelOutputString = strChannelOutputString + "{master/in 2}";
+        }
         xmlIO.addAttribute("name", strName).addAttribute("id","" + intIdCounter++).addAttribute("active","yes").addAttribute("inputs",strChannelInputString)
                 .addAttribute("outputs",strChannelOutputString).addAttribute("gain","1.000000000000").addAttribute("iolimits","1,-1,-1,-1");
         
