@@ -21,8 +21,8 @@ public class fade {
     private long lLength; 
     // An AES31 format string for the fade shape
     private String strFade;
-    // A hash map containing the fade as key value pairs. The key is the time in samples, the value is the gain between 1 and 0
-    private HashMap map;
+    // A tree map containing the fade as key value pairs. The key is the time in samples, the value is the gain between 1 and 0
+    private TreeMap map;
     /**
      * Load a FadeIn or FadeOut from an Ardour project file.
      * Crossfades in Ardour consist of a FadeIn and FadeOut.
@@ -38,7 +38,7 @@ public class fade {
         strFade = "";
         String strKey, strValue;
         float fValue;
-        map = new HashMap();
+        map = new TreeMap();
         Element xmlPoint;
         for (Iterator i = xmlFade.elementIterator("point");i.hasNext();) {
             xmlPoint = (Element)i.next();
@@ -130,7 +130,7 @@ public class fade {
         strFade = "";
         String strKey, strValue;
         float fValue;
-        map = new HashMap();
+        map = new TreeMap();
         if ((xmlSource.attributeValue("active")!= null && xmlSource.attributeValue("active").equalsIgnoreCase("no") )
                 || (xmlSource.attributeValue("default")!= null &&xmlSource.attributeValue("default").equalsIgnoreCase("yes"))) {
             return false;
@@ -214,10 +214,10 @@ public class fade {
         
     }
     
-    public boolean loadAES31Fade (long lSetLength, String strFadeShape) {
+    public boolean loadAES31Fade (long lSetLength, String strFadeShape, String strDirection) {
         lLength = lSetLength;
         strFade = strFadeShape;
-        map = new HashMap();
+        map = new TreeMap();
         String strFadeType = "";
         float fValue0, fValue1, fValue2, fValue3, fValue4;
         Pattern pPattern = Pattern.compile("(CURVE|LIN)\\s*"
@@ -234,7 +234,7 @@ public class fade {
                 fValue1 = (float)Math.exp(fValue1/20);
                 fValue2 = (float)Math.exp(fValue2/20);
                 fValue3 = (float)Math.exp(fValue3/20);
-                if (fValue1 > fValue3) {
+                if (strDirection.equalsIgnoreCase("out")) {
                     fValue0 = 1;
                     fValue4 = 0;
                 } else {
@@ -242,13 +242,22 @@ public class fade {
                     fValue4 = 1;
                 }
                 // The map consists of keys which are the time in samples across the fade, and values which are a float between 1 and 0.
-                map.put(0, fValue0);
-                map.put(lSetLength/4, fValue1);
-                map.put(lSetLength/2, fValue2);
-                map.put(3*lSetLength/4, fValue3);
-                map.put(lSetLength, fValue4);
-            } else {
-                return false;
+                map.put((long)0, fValue0);
+                map.put((long)java.lang.Math.round(lSetLength/4), fValue1);
+                map.put((long)java.lang.Math.round(lSetLength/2), fValue2);
+                map.put((long)java.lang.Math.round(3*lSetLength/4), fValue3);
+                map.put((long)lSetLength, fValue4);
+            } 
+            if (strFadeType.equalsIgnoreCase("LIN")) {
+                if (strDirection.equalsIgnoreCase("out")) {
+                    fValue0 = 1;
+                    fValue1 = 0;
+                } else {
+                    fValue0 = 0;
+                    fValue1 = 1;
+                }
+                map.put((long)0, fValue0);
+                map.put((long)lSetLength, fValue1);
             }
             
             
@@ -273,7 +282,7 @@ public class fade {
     
     public Element getArdourFade(int setID) {
         Element xmlFade;
-        if (Float.parseFloat(map.get(0).toString()) == 1) {
+        if (Float.parseFloat(map.get((long)0).toString()) == 1) {
             // It's a fade out
             xmlFade = DocumentHelper.createElement("FadeOut").addAttribute("active","yes");
         } else {
@@ -290,7 +299,7 @@ public class fade {
         Map.Entry me;
         while (i.hasNext()) {
             me = (Map.Entry)i.next();
-            strEvents = strEvents + Float.parseFloat("" + me.getKey()) + " " + Float.parseFloat("" + me.getValue()) + "\n";
+            strEvents = strEvents + Long.parseLong("" + me.getKey()) + " " + Float.parseFloat("" + me.getValue()) + "\n";
            
         }
         xmlEvents.addText(strEvents);

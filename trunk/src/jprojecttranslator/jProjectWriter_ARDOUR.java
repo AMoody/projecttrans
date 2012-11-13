@@ -262,7 +262,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 strTrackName = rs.getString(2);
                 xmlPlaylist = xmlPlaylists.addElement("Playlist").addAttribute("name",strTrackName+ ".1").addAttribute("orig_diskstream_id","" + intTrackIndex).addAttribute("frozen", "no");
                 strSQL = "SELECT intRegionIndex, strRemark, intSourceIndex, strTrackMap, intSourceIn, "
-                        + "intDestIn, intDestOut, strInFade, intInFade FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + intTrackIndex + ";";
+                        + "intDestIn, intDestOut, strInFade, intInFade, strOutFade, intOutFade FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + intTrackIndex + ";";
                 rs2 = st.executeQuery(strSQL);
                 while (rs2.next()) {
                     // Need to find out how many audio tracks are in the region
@@ -279,15 +279,31 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
 //                    }
                     // Get a region from the SOURCE_INDEX table which we can then modify
                     xmlRegion = getRegionElement(rs2.getInt(3));
+                    // Update the FadeIn element and flags if required.
+                    // Opaque,DefaultFadeIn,DefaultFadeOut,Automatic,WholeFile,FadeIn,FadeOut
+                    String strFlags = "";
+                    fade fadeIn = new fade();
+                    if (rs2.getString(8) != null && fadeIn.loadAES31Fade(rs2.getInt(9), rs2.getString(8), "in")) {
+                        System.out.println("Parsed in fade" + fadeIn.getArdourFade(10));
+                        xmlRegion.element("FadeIn").detach();
+                        xmlRegion.add(fadeIn.getArdourFade(intIdCounter++));
+                        strFlags = strFlags + "FadeIn,";
+                    } else {
+                        strFlags = strFlags + "DefaultFadeIn,FadeIn,";
+                    }
+                    fade fadeOut = new fade();
+                    if (rs2.getString(10) != null && fadeOut.loadAES31Fade(rs2.getInt(11), rs2.getString(10), "out")) {
+                        System.out.println("Parsed out fade" + fadeOut.getArdourFade(10));
+                        xmlRegion.element("FadeOut").detach();
+                        xmlRegion.add(fadeOut.getArdourFade(intIdCounter++));
+                        strFlags = strFlags + "FadeOut";
+                    } else {
+                        strFlags = strFlags + "DefaultFadeOut,FadeOut";
+                    }
+                    xmlRegion.addAttribute("flags",strFlags);
                     xmlRegion.addAttribute("id","" + rs2.getInt(1)).addAttribute("start","" + rs2.getInt(5)).addAttribute("length","" + (rs2.getInt(7) - rs2.getInt(6))).addAttribute("position","" + rs2.getInt(6));
                     xmlRegion.addElement("extra").addElement("GUI").addAttribute("waveform-visible","yes")
                             .addAttribute("envelope-visible","no").addAttribute("waveform-rectified","no").addAttribute("waveform-logscaled","no");
-//                    fade fadeIn = new fade();
-//                    if (fadeIn.loadAES31Fade(rs2.getInt(9), rs2.getString(8))) {
-//                        System.out.println("Parsed in fade" + fadeIn.getArdourFade(10));
-//                        xmlRegion.add(fadeIn.getArdourFade(intIdCounter++));
-//                    }
-                    
                     xmlPlaylist.add(xmlRegion);
 //                    xmlPlaylist.addElement("Region").addAttribute("id","" + rs2.getInt(1)).addAttribute("name",URLDecoder.decode(rs2.getString(2), "UTF-8"))
 //                            .addAttribute("start","" + rs2.getInt(5)).addAttribute("length","" + (rs2.getInt(7) - rs2.getInt(6))).addAttribute("position","" + rs2.getInt(6))
