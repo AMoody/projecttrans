@@ -256,12 +256,12 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             intPrunedTracks = pruneLowerTracks(st);
             intCounter++;
             
-        } while (intPrunedTracks > 0 && intCounter < 50);
+        } while (intPrunedTracks > 0 && intCounter < 5000);
         return true;
     }
     /**
      * Parse the DiskStreams element from the Ardour project file.
-     * This contains some information about the tracks in the EDL including the number of channls.
+     * This contains some information about the tracks in the EDL including the number of channels.
      * @param xmlDiskStream     This is an xml Element containing the DiskStream data
      * @param st                This allows the database to be updated.
      */

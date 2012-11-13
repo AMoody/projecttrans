@@ -261,26 +261,33 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 intTrackIndex = rs.getInt(1);
                 strTrackName = rs.getString(2);
                 xmlPlaylist = xmlPlaylists.addElement("Playlist").addAttribute("name",strTrackName+ ".1").addAttribute("orig_diskstream_id","" + intTrackIndex).addAttribute("frozen", "no");
-                strSQL = "SELECT intRegionIndex, strRemark, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + intTrackIndex + ";";
+                strSQL = "SELECT intRegionIndex, strRemark, intSourceIndex, strTrackMap, intSourceIn, "
+                        + "intDestIn, intDestOut, strInFade, intInFade FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + intTrackIndex + ";";
                 rs2 = st.executeQuery(strSQL);
                 while (rs2.next()) {
                     // Need to find out how many audio tracks are in the region
-                    mMatcher = pPatternChannelMap.matcher(rs2.getString(4));
-                    intChannels = 1;
-                    if (mMatcher.find()) {
-                        // The matcher should have the destination channels, e.g. 3~4 or just 4
-                        strDestChannels = mMatcher.group(2);
-                        // Try to find out how many channels there are
-                        mMatcher = pPatternChannels.matcher(strDestChannels);
-                        if (mMatcher.find()) {
-                            intChannels = Integer.parseInt(mMatcher.group(2)) -  Integer.parseInt(mMatcher.group(1)) + 1;
-                        }
-                    }
+//                    mMatcher = pPatternChannelMap.matcher(rs2.getString(4));
+//                    intChannels = 1;
+//                    if (mMatcher.find()) {
+//                        // The matcher should have the destination channels, e.g. 3~4 or just 4
+//                        strDestChannels = mMatcher.group(2);
+//                        // Try to find out how many channels there are
+//                        mMatcher = pPatternChannels.matcher(strDestChannels);
+//                        if (mMatcher.find()) {
+//                            intChannels = Integer.parseInt(mMatcher.group(2)) -  Integer.parseInt(mMatcher.group(1)) + 1;
+//                        }
+//                    }
                     // Get a region from the SOURCE_INDEX table which we can then modify
                     xmlRegion = getRegionElement(rs2.getInt(3));
                     xmlRegion.addAttribute("id","" + rs2.getInt(1)).addAttribute("start","" + rs2.getInt(5)).addAttribute("length","" + (rs2.getInt(7) - rs2.getInt(6))).addAttribute("position","" + rs2.getInt(6));
                     xmlRegion.addElement("extra").addElement("GUI").addAttribute("waveform-visible","yes")
                             .addAttribute("envelope-visible","no").addAttribute("waveform-rectified","no").addAttribute("waveform-logscaled","no");
+//                    fade fadeIn = new fade();
+//                    if (fadeIn.loadAES31Fade(rs2.getInt(9), rs2.getString(8))) {
+//                        System.out.println("Parsed in fade" + fadeIn.getArdourFade(10));
+//                        xmlRegion.add(fadeIn.getArdourFade(intIdCounter++));
+//                    }
+                    
                     xmlPlaylist.add(xmlRegion);
 //                    xmlPlaylist.addElement("Region").addAttribute("id","" + rs2.getInt(1)).addAttribute("name",URLDecoder.decode(rs2.getString(2), "UTF-8"))
 //                            .addAttribute("start","" + rs2.getInt(5)).addAttribute("length","" + (rs2.getInt(7) - rs2.getInt(6))).addAttribute("position","" + rs2.getInt(6))
@@ -512,18 +519,27 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 xmlRoute.addElement("controllable").addAttribute("name", "solo").addAttribute("id","" + intIdCounter++);
                 xmlRoute.addElement("controllable").addAttribute("name", "mute").addAttribute("id","" + intIdCounter++);
                 xmlRoute.addElement("remote_control").addAttribute("id","" + intIdCounter++);
-                
+//                Element xmlGUI = xmlRoute.addElement("extra").addElement("GUI");
+//                xmlGUI.addAttribute("color","9164:18363:2620").addAttribute("shown_mixer","yes").addAttribute("height","66").addAttribute("shown_editor","yes");
+//                xmlGUI.addElement("gain").addAttribute("shown","no").addAttribute("height","66");
+//                xmlGUI.addElement("pan").addAttribute("shown","no").addAttribute("height","66");
             }
             // Mixer strips for the tracks have been added, need to add a master channel too
             // Save the strMasterChannelInputString string before using getIOElement again
             String strTempMasterChannelInputString1 = strMasterChannelInputString1;
             int intEnd = strTempMasterChannelInputString1.lastIndexOf(",");
-            strTempMasterChannelInputString1 = "{" + strTempMasterChannelInputString1.substring(0, intEnd) + "}";
-            
+            if (intEnd > 0) {
+                strTempMasterChannelInputString1 = "{" + strTempMasterChannelInputString1.substring(0, intEnd) + "}";
+            } else {
+                strTempMasterChannelInputString1 = "{}";
+            }
             String strTempMasterChannelInputString2 = strMasterChannelInputString2;
             intEnd = strTempMasterChannelInputString2.lastIndexOf(",");
-            strTempMasterChannelInputString2 = "{" + strTempMasterChannelInputString2.substring(0, intEnd) + "}";
-            
+            if (intEnd > 0) {
+                strTempMasterChannelInputString2 = "{" + strTempMasterChannelInputString2.substring(0, intEnd) + "}";
+            } else {
+                strTempMasterChannelInputString2 = "{}";
+            }
             
             Element xmlMasterRoute = xmlRoutes.addElement("Route");
             xmlMasterRoute.addAttribute("flags", "MasterOut").addAttribute("default-type", "audio");
@@ -535,6 +551,13 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
             xmlMasterIO.addAttribute("inputs", strTempMasterChannelInputString1 + strTempMasterChannelInputString2);
             xmlMasterIO.addAttribute("outputs", "{system:playback_1}{system:playback_2}");
             xmlMasterRoute.add(xmlMasterIO);
+            xmlMasterRoute.addElement("controllable").addAttribute("name", "solo").addAttribute("id","" + intIdCounter++);
+            xmlMasterRoute.addElement("controllable").addAttribute("name", "mute").addAttribute("id","" + intIdCounter++);
+            xmlMasterRoute.addElement("remote_control").addAttribute("id","" + intIdCounter++);
+//            Element xmlGUI = xmlMasterRoute.addElement("extra").addElement("GUI");
+//                xmlGUI.addAttribute("color","9164:18363:2620").addAttribute("shown_mixer","yes").addAttribute("height","66").addAttribute("shown_editor","yes");
+//                xmlGUI.addElement("gain").addAttribute("shown","no").addAttribute("height","66");
+//                xmlGUI.addElement("pan").addAttribute("shown","no").addAttribute("height","66");
         } catch (java.sql.SQLException e) {
             System.out.println("Error on SQL " + strSQL + e.toString());
         } catch (java.io.UnsupportedEncodingException e) {
@@ -565,9 +588,15 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 .addAttribute("outputs",strChannelOutputString).addAttribute("gain","1.000000000000").addAttribute("iolimits","1,-1,-1,-1");
         
         Element xmlPanner = xmlIO.addElement("Panner").addAttribute("linked","no").addAttribute("link_direction","SameDirection").addAttribute("bypassed","no");
-        xmlPanner = xmlIO.addElement("Output").addAttribute("x","0").addAttribute("y","0");
-        xmlPanner = xmlIO.addElement("Output").addAttribute("x","1").addAttribute("y","0");
-        
+        xmlPanner.addElement("Output").addAttribute("x","0").addAttribute("y","0");
+        xmlPanner.addElement("Output").addAttribute("x","1").addAttribute("y","0");
+//        if (intChannels > 1) {
+//            for(int i=1; i<intChannels + 1; i++){
+//                xmlPanner.add(getStreamPanner((i-1)/(intChannels-1)));
+//            }
+//        } else {
+//            xmlPanner.add(getStreamPanner((float)0.5));
+//        }  
         Element xmlStreamPanner0 = xmlPanner.addElement("StreamPanner").addAttribute("x","0").addAttribute("type","Equal Power Stereo").addAttribute("muted","no");
         xmlStreamPanner0.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
                 .addAttribute("default","0").addAttribute("min_yval","0").addAttribute("max_yval","1").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
@@ -580,8 +609,19 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         
         xmlIO.addElement("controllable").addAttribute("name","gaincontrol").addAttribute("id","" + intIdCounter++);
         
-        xmlStreamPanner1.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
+        xmlIO.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
                 .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
         return xmlIO;
+    }
+    
+    protected Element getStreamPanner(float fDefaultValue) {
+        Element xmlStreamPanner = DocumentHelper.createElement("StreamPanner");
+        String strDefaultValue = String.format("%.1f", fDefaultValue);
+        xmlStreamPanner.addAttribute("x",strDefaultValue).addAttribute("type","Equal Power Stereo").addAttribute("muted","no");
+        xmlStreamPanner.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
+                .addAttribute("default",strDefaultValue).addAttribute("min_yval","0").addAttribute("max_yval","1").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
+        xmlStreamPanner.addElement("controllable").addAttribute("name","panner").addAttribute("id","" + intIdCounter++);
+        return xmlStreamPanner;
+        
     }
 }
