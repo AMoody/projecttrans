@@ -33,6 +33,9 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
     String strProjectName;
     String strMasterChannelInputString1 = "";
     String strMasterChannelInputString2 = "";
+    // For debuggin we can turn off the writing of InFades and OutFades
+    protected boolean bWriteInFades = true;
+    protected boolean bWriteOutFades = true;
     
     
         /*
@@ -283,7 +286,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                     // Opaque,DefaultFadeIn,DefaultFadeOut,Automatic,WholeFile,FadeIn,FadeOut
                     String strFlags = "";
                     fade fadeIn = new fade();
-                    if (rs2.getString(8) != null && fadeIn.loadAES31Fade(rs2.getInt(9), rs2.getString(8), "in")) {
+                    if (bWriteInFades && rs2.getString(8) != null && fadeIn.loadAES31Fade(rs2.getInt(9), rs2.getString(8), "in")) {
                         System.out.println("Parsed in fade" + fadeIn.getArdourFade(10));
                         xmlRegion.element("FadeIn").detach();
                         xmlRegion.add(fadeIn.getArdourFade(intIdCounter++));
@@ -292,7 +295,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                         strFlags = strFlags + "DefaultFadeIn,FadeIn,";
                     }
                     fade fadeOut = new fade();
-                    if (rs2.getString(10) != null && fadeOut.loadAES31Fade(rs2.getInt(11), rs2.getString(10), "out")) {
+                    if (bWriteOutFades && rs2.getString(10) != null && fadeOut.loadAES31Fade(rs2.getInt(11), rs2.getString(10), "out")) {
                         System.out.println("Parsed out fade" + fadeOut.getArdourFade(10));
                         xmlRegion.element("FadeOut").detach();
                         xmlRegion.add(fadeOut.getArdourFade(intIdCounter++));
@@ -511,7 +514,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
             
     protected void fillRoutesElement(Element xmlRoutes) {
         /**
-         * We need to build a default mixer with all out tracks routed to the output
+         * We need to build a default mixer with all tracks routed to the output
          */ 
         strMasterChannelInputString1 = "";
         strMasterChannelInputString2 = "";
