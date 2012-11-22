@@ -534,7 +534,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                         .addAttribute("meter-point", "MeterPostFader").addAttribute("order-keys", "editor=" + intEditor + ":signal=" + intEditor++).addAttribute("mode", "Normal");
                 strName = URLDecoder.decode(rs.getString(4), "UTF-8");
                 intChannels = rs.getInt(2);
-                xmlRoute.add(getIOElement(strName, intChannels));
+                xmlRoute.add(getIOElement(strName, intChannels, rs.getString(3)));
                 xmlRoute.addElement("controllable").addAttribute("name", "solo").addAttribute("id","" + intIdCounter++);
                 xmlRoute.addElement("controllable").addAttribute("name", "mute").addAttribute("id","" + intIdCounter++);
                 xmlRoute.addElement("remote_control").addAttribute("id","" + intIdCounter++);
@@ -566,9 +566,9 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                         .addAttribute("mute-affects-pre-fader", "yes").addAttribute("mute-affects-post-fader", "yes")
                         .addAttribute("mute-affects-control-outs", "yes").addAttribute("mute-affects-main-outs", "yes")
                         .addAttribute("meter-point", "MeterPostFader").addAttribute("order-keys", "editor=0:signal=0");
-            Element xmlMasterIO = getIOElement("master", 2);
+            Element xmlMasterIO = getIOElement("master", 2, "0");
             xmlMasterIO.addAttribute("inputs", strTempMasterChannelInputString1 + strTempMasterChannelInputString2);
-            xmlMasterIO.addAttribute("outputs", "{system:playback_1}{system:playback_2}");
+            xmlMasterIO.addAttribute("outputs", "{system:playback_1}{system:playback_2}").addAttribute("iolimits","-1,2,-1,2");
             xmlMasterRoute.add(xmlMasterIO);
             xmlMasterRoute.addElement("controllable").addAttribute("name", "solo").addAttribute("id","" + intIdCounter++);
             xmlMasterRoute.addElement("controllable").addAttribute("name", "mute").addAttribute("id","" + intIdCounter++);
@@ -587,7 +587,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         
     }
     
-    protected Element getIOElement(String strName, int intChannels) {
+    protected Element getIOElement(String strName, int intChannels, String strTrackMap) {
         // strMasterChannelInputString
         Element xmlIO = DocumentHelper.createElement("IO");
         String strChannelOutputString = "";
@@ -628,8 +628,9 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         
         xmlIO.addElement("controllable").addAttribute("name","gaincontrol").addAttribute("id","" + intIdCounter++);
         
-        xmlIO.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
-                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
+//        xmlIO.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
+//                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
+        xmlIO.addElement("Automation").add(getAutomationListForIO(strTrackMap));
         return xmlIO;
     }
     
@@ -641,6 +642,49 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 .addAttribute("default",strDefaultValue).addAttribute("min_yval","0").addAttribute("max_yval","1").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
         xmlStreamPanner.addElement("controllable").addAttribute("name","panner").addAttribute("id","" + intIdCounter++);
         return xmlStreamPanner;
+        
+    }
+    
+    protected Element getAutomationListForIO (String strChannelMap) {
+        Element xmlAutomationList = DocumentHelper.createElement("AutomationList");
+        Element xmlEvents = DocumentHelper.createElement("events");
+        String strEvents = "";
+        // Find the first track from the track map, use this for automation
+        int intFirstChannel;
+        long lTime;
+        float fLevel;
+        Matcher mMatcher;
+        Pattern pPatternChannels;
+        pPatternChannels = Pattern.compile("(\\d*)"); // This should match the first digit of the track map string, e.g. 1~2 etc
+        mMatcher = pPatternChannels.matcher(strChannelMap);
+        if (mMatcher.find()) {
+            intFirstChannel = Integer.parseInt(mMatcher.group(1));
+            try {
+                strSQL = "SELECT intTime, strLevel FROM PUBLIC.FADER_LIST WHERE intTrack = " + intFirstChannel + " ORDER BY intTime;";
+                ResultSet rs = st.executeQuery(strSQL);
+                while (rs.next()) {
+                    lTime = rs.getLong(1);
+                    fLevel = Float.parseFloat(rs.getString(2));
+                    fLevel = (float)Math.exp(fLevel/20);
+                    strEvents = strEvents + "" + lTime + " " + fLevel + "\n";
+                }
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+            }
+            xmlEvents.addText(strEvents);
+            xmlAutomationList.addAttribute("id","" + intIdCounter++)
+                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2")
+                .addAttribute("max_xval","0").addAttribute("state","Play").addAttribute("style","Absolute");
+            xmlAutomationList.add(xmlEvents);
+        } else {
+            xmlAutomationList.addAttribute("id","" + intIdCounter++)
+                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2")
+                .addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
+        }
+        
+        
+        return xmlAutomationList;
+        
         
     }
 }
