@@ -649,6 +649,9 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         Element xmlAutomationList = DocumentHelper.createElement("AutomationList");
         Element xmlEvents = DocumentHelper.createElement("events");
         String strEvents = "";
+        xmlAutomationList.addAttribute("id","" + intIdCounter++)
+                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2")
+                .addAttribute("max_xval","0").addAttribute("style","Absolute").addAttribute("state","Off");
         // Find the first track from the track map, use this for automation
         int intFirstChannel;
         long lTime;
@@ -657,7 +660,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         Pattern pPatternChannels;
         pPatternChannels = Pattern.compile("(\\d*)"); // This should match the first digit of the track map string, e.g. 1~2 etc
         mMatcher = pPatternChannels.matcher(strChannelMap);
-        if (mMatcher.find()) {
+        if (mMatcher.find() && Integer.parseInt(mMatcher.group(1)) > 0) {
             intFirstChannel = Integer.parseInt(mMatcher.group(1));
             try {
                 strSQL = "SELECT intTime, strLevel FROM PUBLIC.FADER_LIST WHERE intTrack = " + intFirstChannel + " ORDER BY intTime;";
@@ -671,18 +674,12 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
             } catch (java.sql.SQLException e) {
                 System.out.println("Error on SQL " + strSQL + e.toString());
             }
-            xmlEvents.addText(strEvents);
-            xmlAutomationList.addAttribute("id","" + intIdCounter++)
-                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2")
-                .addAttribute("max_xval","0").addAttribute("state","Play").addAttribute("style","Absolute");
-            xmlAutomationList.add(xmlEvents);
-        } else {
-            xmlAutomationList.addAttribute("id","" + intIdCounter++)
-                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2")
-                .addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
-        }
-        
-        
+            if (strEvents.length() > 0) {
+                xmlEvents.addText(strEvents);
+                xmlAutomationList.addAttribute("state","Play");
+                xmlAutomationList.add(xmlEvents);
+            }
+        } 
         return xmlAutomationList;
         
         
