@@ -329,10 +329,23 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         xmlTempoMap.addElement("Meter").addAttribute("start","1|1|0").addAttribute("beats-per-bar","4.000000").addAttribute("note-type","4.000000").addAttribute("movable","no");
 }
     private void fillLocationsElement(Element xmlLocations) {
-        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","start").addAttribute("start","0").addAttribute("end","0").addAttribute("flags","IsMark,IsStart").addAttribute("locked","no");
-        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","end").addAttribute("start","14400000").addAttribute("end","14400000").addAttribute("flags","IsMark,IsEnd").addAttribute("locked","no");
-        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","Loop").addAttribute("start","0").addAttribute("end","14400000").addAttribute("flags","IsAutoLoop,IsHidden").addAttribute("locked","no");
-        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","Punch").addAttribute("start","0").addAttribute("end","14400000").addAttribute("flags","IsAutoPunch,IsHidden").addAttribute("locked","no");
+        long lStart = 0;
+        long lEnd = 14400000;
+        try {
+            strSQL = "SELECT MIN(intDestIn), MAX(intDestOut) FROM PUBLIC.EVENT_LIST;";
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();
+            if (!(rs.wasNull()) ) {
+                lStart = rs.getLong(1);
+                lEnd = rs.getLong(2);
+            }
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        }    
+        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","start").addAttribute("start","" + lStart).addAttribute("end","" + lStart).addAttribute("flags","IsMark,IsStart").addAttribute("locked","no");
+        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","end").addAttribute("start","" + lEnd).addAttribute("end","" + lEnd).addAttribute("flags","IsMark,IsEnd").addAttribute("locked","no");
+        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","Loop").addAttribute("start","" + lStart).addAttribute("end","" + lEnd).addAttribute("flags","IsAutoLoop,IsHidden").addAttribute("locked","no");
+        xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","Punch").addAttribute("start","" + lStart).addAttribute("end","" + lEnd).addAttribute("flags","IsAutoPunch,IsHidden").addAttribute("locked","no");
     }
     private void updateDatabaseForArdour() {
         // Start by getting the max ID number from the SOURCE_INDEX table.
