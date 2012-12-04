@@ -149,8 +149,8 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         fillTempoMapElement(xmlTempoMap);
         
         
-        
-//        Element xmlClick = xmlRoot.addElement("Click");
+        Element xmlClick = xmlRoot.addElement("Click");
+        xmlClick.add(getClickIOElement());
         
         
         xmlRoot.addAttribute("name", strProjectName);
@@ -644,6 +644,34 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
 //        xmlIO.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
 //                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
         xmlIO.addElement("Automation").add(getAutomationListForIO(strTrackMap));
+        return xmlIO;
+    }
+    
+    protected Element getClickIOElement() {
+        String strName = "click";
+        Element xmlIO = DocumentHelper.createElement("IO");
+        String strChannelOutputString = "";
+        String strChannelInputString = "{system:playback_1}{system:playback_2}";
+        xmlIO.addAttribute("name", strName).addAttribute("id","" + intIdCounter++).addAttribute("active","yes").addAttribute("inputs",strChannelInputString)
+                .addAttribute("outputs",strChannelOutputString).addAttribute("gain","1.000000000000").addAttribute("iolimits","0,0,-1,-1");
+        
+        Element xmlPanner = xmlIO.addElement("Panner").addAttribute("linked","no").addAttribute("link_direction","SameDirection").addAttribute("bypassed","no");
+        xmlPanner.addElement("Output").addAttribute("x","0").addAttribute("y","0");
+        xmlPanner.addElement("Output").addAttribute("x","1").addAttribute("y","0");
+        Element xmlStreamPanner0 = xmlPanner.addElement("StreamPanner").addAttribute("x","0.5").addAttribute("type","Equal Power Stereo").addAttribute("muted","no");
+        xmlStreamPanner0.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
+                .addAttribute("default","0.5").addAttribute("min_yval","0").addAttribute("max_yval","1").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
+        xmlStreamPanner0.addElement("controllable").addAttribute("name","panner").addAttribute("id","" + intIdCounter++);
+        
+        Element xmlStreamPanner1 = xmlPanner.addElement("StreamPanner").addAttribute("x","0.5").addAttribute("type","Equal Power Stereo").addAttribute("muted","no");
+        xmlStreamPanner1.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
+                .addAttribute("default","0.5").addAttribute("min_yval","0").addAttribute("max_yval","1").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
+        xmlStreamPanner1.addElement("controllable").addAttribute("name","panner").addAttribute("id","" + intIdCounter++);
+        
+        xmlIO.addElement("controllable").addAttribute("name","gaincontrol").addAttribute("id","" + intIdCounter++);
+        
+        xmlIO.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
+                .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
         return xmlIO;
     }
     
