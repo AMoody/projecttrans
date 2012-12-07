@@ -108,15 +108,27 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         /**
         * Next step is to create an ardour file and write the output.
         */
-        writeARDOURFile(fDestFile, st);
-        oProjectTranslator.writeStringToPanel("Ardour project file written");
-        writeAudioFiles(fAudioFolder);
-        oProjectTranslator.writeStringToPanel("Finished");
+        if (writeARDOURFile(fDestFile, st)) {
+            oProjectTranslator.writeStringToPanel("Ardour project file written.");
+        } else {
+            oProjectTranslator.writeStringToPanel("Failed to write Ardour project file.");
+        }
+        if (writeAudioFiles(fAudioFolder)) {
+            oProjectTranslator.writeStringToPanel("Audio files have been written, finished.");
+        } else {
+            oProjectTranslator.writeStringToPanel("An error occurred while writing audio files.");
+        }
         System.out.println("Ardour writer thread finished");
         return true;
     }
     
-    
+    /**
+     * This creates the XML document and fills in all the elements. 
+     * Then it saved the MXL file.
+     * @param setDestFile The file and path where the file should be saved.
+     * @param st
+     * @return 
+     */
     private boolean writeARDOURFile(File setDestFile, Statement st) {
         ResultSet rs;
         xmlDocument.clearContent();
@@ -155,12 +167,13 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         
         xmlRoot.addAttribute("name", strProjectName);
         xmlRoot.addAttribute("id-counter","" + intIdCounter);
-
-
-        saveXMLFile(setDestFile);
-        return true;
+        return saveXMLFile(setDestFile);
     }
-    
+    /**
+     * This saves the ardour XML file.
+     * @param setDestFile This sets the path and name for the file.
+     * @return true if the file is saved without errors.
+     */
     private boolean saveXMLFile(File setDestFile) {
         try {
             xmlFormat.setNewlines(true);
@@ -173,21 +186,26 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         }  
         return true;    //OK if we got this far
     } 
-    
+    /**
+     * This fills the config element with default values.
+     * @param xmlConfig 
+     */
     private void fillConfigElement(Element xmlConfig) {
         xmlConfig.addElement("Option").addAttribute("name", "output-auto-connect").addAttribute("value", "2");
         xmlConfig.addElement("Option").addAttribute("name", "input-auto-connect").addAttribute("value", "1");
         xmlConfig.addElement("Option").addAttribute("name", "meter-falloff").addAttribute("value", "32");
+        xmlConfig.addElement("Option").addAttribute("name", "native-file-header-format").addAttribute("value", "0");
         xmlConfig.addElement("end-marker-is-free").addAttribute("val", "yes");
     }
-    
+    /**
+     * This fills the regions and sources elements.
+     * These regions are in the region list, they might also be in the playlist (edl)
+     * but we will create new regions entries for this.
+     * We need to know how many audio tracks each region's sound file has.
+     * @param xmlRegions
+     * @param xmlSources 
+     */
     private void fillRegionsandSourcesElement(Element xmlRegions, Element xmlSources){
-        /** The regions and sources elements are closely related
-         * We will fill them together.
-         * These regions are in the region list, they might also be in the playlist (edl)
-         * but we will create new regions entries for this.
-         * We need to know how many audio tracks each region's sound file has.
-         */
         try {
             strSQL = "SELECT intIndex FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
             st = conn.createStatement();
@@ -205,7 +223,12 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
             System.out.println("Error on SQL " + strSQL + e.toString());
         } 
     }
-    
+    /**
+     * This fills both the diskstreams and playlists element.
+     * It's easier to fill these together as they contain closely related information.
+     * @param xmlDiskStreams
+     * @param xmlPlaylists 
+     */
     private void fillDiskStreamsandPlaylistsElement(Element xmlDiskStreams, Element xmlPlaylists){
         // First we need to know how many tracks there are in the 
         // playlist by looking at the entries on the edl, these are in the EVENT_LIST table.
@@ -324,10 +347,19 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         
         
     }
+    /**
+     * This is used to fill the tempo map element with default values.
+     * @param xmlTempoMap 
+     */
     private void fillTempoMapElement(Element xmlTempoMap) {
         xmlTempoMap.addElement("Tempo").addAttribute("start","1|1|0").addAttribute("beats-per-minute","120.000000").addAttribute("note-type","4.000000").addAttribute("movable","no");
         xmlTempoMap.addElement("Meter").addAttribute("start","1|1|0").addAttribute("beats-per-bar","4.000000").addAttribute("note-type","4.000000").addAttribute("movable","no");
 }
+    /**
+     * This fills the 'locations' XML element.
+     * It tries to create the start and end markers in the right places by checking the first in and last out in the EDL.
+     * @param xmlLocations This is the locations element to be filled.
+     */
     private void fillLocationsElement(Element xmlLocations) {
         long lStart = 0;
         long lEnd = 14400000;
@@ -347,6 +379,11 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","Loop").addAttribute("start","" + lStart).addAttribute("end","" + lEnd).addAttribute("flags","IsAutoLoop,IsHidden").addAttribute("locked","no");
         xmlLocations.addElement("Location").addAttribute("id","" + intIdCounter++).addAttribute("name","Punch").addAttribute("start","" + lStart).addAttribute("end","" + lEnd).addAttribute("flags","IsAutoPunch,IsHidden").addAttribute("locked","no");
     }
+    /**
+     * This is used to update all of the index numbers for the various items in the Ardour file.
+     * These must be unique with in the file.
+     * It also creates the entries in the ARDOUR.SOURCES table using data from the SOURCE_INDEX table.
+     */
     private void updateDatabaseForArdour() {
         // Start by getting the max ID number from the SOURCE_INDEX table.
         ResultSet rs;
@@ -391,7 +428,11 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         } 
     }
     
-    
+    /**
+     * This creates an XML region element.
+     * @param intRegionID This is the region ID used in the SQL query.
+     * @return An XML element.
+     */
     protected Element getRegionElement(int intRegionID) {
         Element xmlRegion = DocumentHelper.createElement("Region");
         try {
@@ -435,7 +476,11 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         return xmlRegion;
         
     }
-    
+    /**
+     * This creates an XML source element from the database.
+     * @param intSourceID This sets the source ID which is used in the SQL query.
+     * @return An XML source element.
+     */
     protected Element getSourceElement(int intSourceID) {
         Element xmlSource = DocumentHelper.createElement("Source");
         try {
@@ -457,7 +502,11 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         }
         return xmlSource;
     }
-    
+    /**
+     * This writes all the audio files which have been found in to the folder specified.
+     * @param setAudioFolder This is the destination folder for the files.
+     * @return true if all the files are written without any errors.
+     */
     protected boolean writeAudioFiles(File setAudioFolder) {
         File fAudioFolder = setAudioFolder;
         File fDestFile;
@@ -524,7 +573,10 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         }
         return true;
     }
-            
+    /**
+     * Fills the routes element which contains the settings for the mixer.
+     * @param xmlRoutes The is the (empty) routes element which will be filled.
+     */        
     protected void fillRoutesElement(Element xmlRoutes) {
         /**
          * We need to build a default mixer with all tracks routed to the output
@@ -599,7 +651,13 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
             
         
     }
-    
+    /**
+     * Creates an IO element.
+     * @param strName Sets the name of the IO element.
+     * @param intChannels Sets the number of channels in the element.
+     * @param strTrackMap Sets the track map so the gain automation for this channel can be found.
+     * @return 
+     */
     protected Element getIOElement(String strName, int intChannels, String strTrackMap) {
         // strMasterChannelInputString
         Element xmlIO = DocumentHelper.createElement("IO");
@@ -646,7 +704,10 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         xmlIO.addElement("Automation").add(getAutomationListForIO(strTrackMap));
         return xmlIO;
     }
-    
+    /**
+     * Creates an IO element in the format used by the 'click' element.
+     * @return an XML IO element.
+     */
     protected Element getClickIOElement() {
         String strName = "click";
         Element xmlIO = DocumentHelper.createElement("IO");
@@ -674,7 +735,11 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 .addAttribute("default","1").addAttribute("min_yval","0").addAttribute("max_yval","2").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
         return xmlIO;
     }
-    
+    /**
+     * Creates a 'Stream Panner' element
+     * @param fDefaultValue This sets the default value for the panner
+     * @return An XML element with a StreamPanner.
+     */
     protected Element getStreamPanner(float fDefaultValue) {
         Element xmlStreamPanner = DocumentHelper.createElement("StreamPanner");
         String strDefaultValue = String.format("%.1f", fDefaultValue);
@@ -685,7 +750,11 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         return xmlStreamPanner;
         
     }
-    
+    /**
+     * This creates an automation list in the format used in the IO element.
+     * @param strChannelMap The channel map is used to find which audio channel in the FADER.LIST table is used.
+     * @return An XML element containing the gain automation for this channel.
+     */
     protected Element getAutomationListForIO (String strChannelMap) {
         Element xmlAutomationList = DocumentHelper.createElement("AutomationList");
         Element xmlEvents = DocumentHelper.createElement("events");
@@ -724,5 +793,18 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         return xmlAutomationList;
         
         
+    }
+    
+    /** This is used to get text information which is shown in the Help/About dialogue box.
+     * @return The information text.
+     */
+    public String getInfoText() {
+        return "<b>Ardour</b><br>"
+                + "This exporter will write an Ardour project with all the required folders.<br>"
+                + "If the chosen folder does not have the same name as the name chosen for the Ardour project then a new subfolder will be created.<br>"
+                + "If the required audio files have been found these will also be copied to the correct subfolder.<br>"
+                + "If the audio files are not BWAVs then a bext chunk will be added.<br>"
+                + "Fades are written as region fades, gain automation will be written as mixer gain automation.<br>"
+                + "<br>";
     }
 }
