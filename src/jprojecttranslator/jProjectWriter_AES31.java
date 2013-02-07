@@ -13,6 +13,8 @@ import java.net.URLEncoder;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Iterator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -28,7 +30,7 @@ import org.joda.time.format.DateTimeFormatter;
  */
 public class jProjectWriter_AES31 extends jProjectWriter {
     public static DateTimeFormatter fmtADLXML = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZZ");
-    
+    private int intIdCounter = 0;
     /*
      * This returns a FileFilter which this class can read
      */
@@ -38,7 +40,26 @@ public class jProjectWriter_AES31 extends jProjectWriter {
     } 
     protected boolean processProject() {
         System.out.println("AES31 writer thread running");
+        // Clear the TRACKS table
+        try {
+            strSQL = "DELETE FROM PUBLIC.TRACKS;";
+            int j = st.executeUpdate(strSQL);
+            if (j == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        }
+        // Fill in the URI information
         writeURIs ();
+        // Move overlapping tracks
+        int intCounter = 0;
+        int intMovedTracks = 0;
+        do {
+            intMovedTracks = moveSubordinateClips(st);
+            intCounter++;
+            
+        } while (intMovedTracks > 0 && intCounter < 5);
         /**
         * Next step is to create an ADL file and write the output.
         */
@@ -316,7 +337,221 @@ public class jProjectWriter_AES31 extends jProjectWriter {
 
         }
         return "";
-    }    
+    } 
+    /**
+     * This method will look for audio clips (regions) which lie completely within another clip.
+     * As some audio editors cannot import an ADL file where there is gain automation and clips
+     * which lie completely within another we will move the shorter clips to a new track which has no gain 
+     * automation. The user will need to tidy these moved clips up after import to their editor.
+     * @param st For database access
+     * @return Returns the number of clips which have been moved.
+     */
+    protected int moveSubordinateClips(Statement st) {
+        ResultSet rs;
+        int intMovedClips, intIndex;
+        long lDestIn, lDestOut;
+        String strDestChannels, strTrackMap, strSourceChannels;
+        intMovedClips = 0;
+        Matcher mMatcher;
+        Pattern pPatternChannelMap, pPatternChannels;
+        pPatternChannelMap = Pattern.compile("(\\d*~\\d*|\\d*)\\s*(\\d*~\\d*|\\d*)"); // This should match the track map string, e.g. 1~2 3~4 etc
+        // Look through every entry in the EVENT_LIST table
+        strSQL = "SELECT intIndex, intDestIn, intDestOut, strTrackMap "
+                + "FROM PUBLIC.EVENT_LIST;";
+        try {
+            st = conn.createStatement();
+            rs = st.executeQuery(strSQL);
+            while (rs.next()) {
+                intIndex = rs.getInt(1);
+                lDestIn = rs.getLong(2);
+                lDestOut = rs.getLong(3);
+                strTrackMap = rs.getString(4);
+                // We need to get the destination channels from the strTrackMap string.
+                mMatcher = pPatternChannelMap.matcher(strTrackMap);
+                if (mMatcher.find()) {
+                    strSourceChannels = mMatcher.group(1);
+                    // The matcher should have the destination channels, e.g. 3~4 or just 4
+                    strDestChannels = mMatcher.group(2);
+                    strSQL = "SELECT COUNT(*) FROM PUBLIC.EVENT_LIST WHERE "
+                        + "intDestIn >= " + lDestIn + " AND "
+                        + "intDestOut <= " + lDestOut + " AND "
+                        + "strTrackMap LIKE \'% " + strDestChannels + "\' AND "
+                        + "intIndex != " + intIndex + ";";
+                    ResultSet rs2 = st.executeQuery(strSQL);
+                    rs2.next();
+                    if (rs2.getInt(1) > 0) {
+                        System.out.println("Searched for clip with " + strSQL + " found " + rs2.getInt(1));
+                        intMovedClips++;
+                        strSQL = "SELECT intIndex, intDestIn, intDestOut, strTrackMap FROM PUBLIC.EVENT_LIST WHERE "
+                        + "intDestIn >= " + lDestIn + " AND "
+                        + "intDestOut <= " + lDestOut + " AND "
+                        + "strTrackMap LIKE \'% " + strDestChannels + "\' AND "
+                        + "intIndex != " + intIndex + ";";
+                        rs2 = st.executeQuery(strSQL);
+                        rs2.next();
+                        strTrackMap = rs2.getString(4);
+                        mMatcher = pPatternChannelMap.matcher(strTrackMap);
+                        if (mMatcher.find()) {
+                            strSourceChannels = mMatcher.group(1);
+                        }
+                        System.out.println("Clip " + rs2.getInt(1) + " had to be moved from under clip " + intIndex );
+                        moveClip(st, rs2.getInt(1), rs2.getLong(2), rs2.getLong(3), strSourceChannels, strDestChannels);
+                        return intMovedClips;
+                        // We need to find a substitute destination for each of these clips
+                    }
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        } 
+        
+    
+        
+        return intMovedClips;
+    }
+    /**
+     * This method updates the database so the clip is on a different track where there is no overlap.
+     * An alternative destination string needs to be created for each channel count.
+     * For example if the original string was 6 then this is a mono channel, we need to look through the EVENT_LIST
+     * and TRACKS tables and find an unused destination number and return this instead, saving in case of more mono clips
+     * which need to be moved later.
+     * Same for stereo clips etc. We will store out newly created destinations in the TRACKS table.
+     * @param st
+     * @param intIndex
+     * @param lDestIn
+     * @param lDestOut
+     * @param strTrackMap
+     * @param strDestChannels
+     * @return
+     */
+    protected boolean moveClip (Statement st, int intIndex, long lDestIn, long lDestOut, String strSourceChannels, String strDestChannels) {
+        Matcher mMatcher;
+        Pattern pPatternChannels;
+        int intChannels;
+        pPatternChannels = Pattern.compile("(\\d*)~(\\d*)"); // This should match the track map string, e.g. 1~2 etc
+        // Start by finding how many channels are required on the track
+        mMatcher = pPatternChannels.matcher(strDestChannels);
+        if (mMatcher.find()) {
+            intChannels = Integer.parseInt(mMatcher.group(2)) -  Integer.parseInt(mMatcher.group(1)) + 1;
+        } else {
+            intChannels = 1;
+        }
+        
+        try {
+            // See if there are any suitable tracks already
+            strSQL = "SELECT COUNT(*) FROM PUBLIC.TRACKS WHERE "
+                + "intChannels = " + intChannels + ";";
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();
+            if (rs.getInt(1) > 0) {
+                // One or more potential tracks already exists, need to test each to see if there are already clips which would overlap with ours
+                strSQL = "SELECT intIndex, strChannelMap FROM PUBLIC.TRACKS WHERE intChannels = " + intChannels + ";";
+                rs = st.executeQuery(strSQL);
+                while (rs.next()) {
+                    strSQL = "SELECT COUNT(*) FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + rs.getInt(1) + " AND "
+                            + "(intDestIn < " + lDestOut + " AND intDestOut > " + lDestIn + ")  "
+                            + ";";
+                    System.out.println("Checking for overlapping tracks with  " + strSQL + "");
+                    ResultSet rs2 = st.executeQuery(strSQL);
+                    rs2.next();
+                    if (rs2.getInt(1) == 0) {
+                        // We can reuse this track for our clip
+                        strSQL = "UPDATE PUBLIC.EVENT_LIST SET intTrackIndex = " + rs.getInt(1) + ", "
+                                + "strTrackMap = \'" + strSourceChannels + " " + rs.getString(2) + "\' "
+                                + "WHERE intIndex = " + intIndex + ";";
+                        int j = st.executeUpdate(strSQL);
+                        if (j == -1) {
+                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                            return false;
+                        }
+                        System.out.println("Clip moved with " + strSQL + " to existing track");
+                        return true;
+                    }
+                }
+            } 
+            // If we got here then there were no suitable tracks
+            int intTrackIndex = createTrack(st, intChannels);
+            if (intTrackIndex > 0) {
+                // Get the dest string
+                strSQL = "SELECT strChannelMap FROM PUBLIC.TRACKS WHERE intIndex = " + intTrackIndex + ";";
+                rs = st.executeQuery(strSQL);
+                rs.next();
+                strSQL = "UPDATE PUBLIC.EVENT_LIST SET intTrackIndex = " + intTrackIndex + ", "
+                        + "strTrackMap = \'" + strSourceChannels + " " + rs.getString(1) + "\' "
+                        + "WHERE intIndex = " + intIndex + ";";
+                int j = st.executeUpdate(strSQL);
+                if (j == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    return false;
+                }
+                System.out.println("Clip moved with " + strSQL + " to new track");
+                return true;
+            }
+            
+            
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        } 
+        
+        return true;
+    }
+    /**
+     * This method creates a new entry in the TRACK table.
+     * The dest map is calculated by finding the highest dest number which has already been used.
+     * @param st
+     * @param intChannels Sets the number of audio channels in the track which is created.
+     * @return Returns the index number from the TRACKS table where the new track was entered.
+     */
+    protected int createTrack(Statement st, int intChannels) {
+        int intMaxChannels = 0;
+        int intCurrentChannel;
+        ResultSet rs;
+        Matcher mMatcher;
+        Pattern pPatternLastNumber;
+        pPatternLastNumber = Pattern.compile("(.*?)(\\d+)$"); // This should match the last digit in the string, e.g. 1~2 3~4 etc
+        String strNewMap;
+        try {
+            // Get the maximum count so far
+            strSQL = "SELECT DISTINCT strTrackMap FROM PUBLIC.EVENT_LIST;";
+            st = conn.createStatement();
+            rs = st.executeQuery(strSQL);
+            while (rs.next()) {
+                mMatcher = pPatternLastNumber.matcher(rs.getString(1));
+                if (mMatcher.find()) {
+                    intCurrentChannel = Integer.parseInt(mMatcher.group(2));
+                    // System.out.println("Searching for max channel no, found " + intCurrentChannel + "\n");
+                    if (intCurrentChannel > intMaxChannels) {
+                        intMaxChannels = intCurrentChannel;
+                    }
+                    
+                }
+                
+            }
+            // Create a new entry in the TRACKS table
+            int intStartChannel = intMaxChannels + 1;
+            int intEndChannel = intStartChannel + intChannels - 1; 
+            if (intChannels == 1) {
+                strNewMap = "" + intStartChannel;
+            } else {
+                strNewMap = "" + intStartChannel + "~" + intEndChannel;
+            }
+            intIdCounter++;
+            strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, intChannels, strChannelMap, strName) VALUES "
+                    + "(" + intIdCounter + ", " + intChannels + ", \'" + strNewMap + "\', \'Audio " + intIdCounter + "\');";
+            int j = st.executeUpdate(strSQL);
+            if (j == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                return 0;
+            }
+            
+                    
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+            return 0;
+        }
+        
+        return intIdCounter;
+    }
     protected boolean writeAudioFiles () {
         /** Now to write out the sound files
          * 
