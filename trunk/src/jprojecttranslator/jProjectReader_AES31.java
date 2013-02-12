@@ -411,8 +411,8 @@ public class jProjectReader_AES31 extends jProjectReader {
 //        pPattern = Pattern.compile("\\(Cut\\)\\s*(.*?)\\s*(\\d{4})\s*(\\d~\\d|\\d)\\s*(\\d~\\d|\\d)\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\w*)");
         // pPattern = Pattern.compile("\\(Cut\\)\\s*(.*?)\\s*(\\d{4})\\s*(\\d~\\d|\\d)\\s*(\\d~\\d|\\d)\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\d{4}\\d{4}\\d{4}\\d{4})\\s*(\\w*)");
         pPattern = Pattern.compile("\\(Cut\\)\\s*(.*?)\\s*(\\d{4})" // Cut index
-                + "\\s*(\\d~\\d|\\d)" // Source channel(s)
-                + "\\s*(\\d~\\d|\\d)" // Destination channel(s)
+                + "\\s*(\\d*~\\d*|\\d*)" // Source channel(s)
+                + "\\s*(\\d*~\\d*|\\d*)" // Destination channel(s)
                 + "\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)" // Source in time
                 + "\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)" // Destination in time
                 + "\\s*(\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\D\\d\\d\\d\\d)" // Destination out time

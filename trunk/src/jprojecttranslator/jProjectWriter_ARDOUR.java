@@ -246,7 +246,9 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
             if (j == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
             }
-            strSQL = "SELECT DISTINCT strTrackMap FROM PUBLIC.EVENT_LIST;";
+            strSQL = "SELECT strTrackMap FROM PUBLIC.EVENT_LIST GROUP BY strTrackMap;";
+            // strSQL = "SELECT strTrackMap FROM PUBLIC.EVENT_LIST GROUP BY strTrackMap ORDER BY MAX(intIndex);";
+            // strSQL = "SELECT DISTINCT strTrackMap FROM PUBLIC.EVENT_LIST;";
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
             while (rs.next()) {
@@ -266,7 +268,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                     if (j == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                     }
-                    strSQL = "UPDATE PUBLIC.EVENT_LIST SET intTrackIndex = " + intIdCounter + " WHERE strTrackMap LIKE \'%" + strDestChannels + "\';";
+                    strSQL = "UPDATE PUBLIC.EVENT_LIST SET intTrackIndex = " + intIdCounter + " WHERE strTrackMap LIKE \'% " + strDestChannels + "\';";
                     j = st.executeUpdate(strSQL);
                     if (j == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
