@@ -59,7 +59,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             intMovedTracks = moveSubordinateClips(st);
             intCounter++;
             
-        } while (intMovedTracks > 0 && intCounter < 5);
+        } while (intMovedTracks > 0 && intCounter < 500);
         /**
         * Next step is to create an ADL file and write the output.
         */
@@ -394,10 +394,10 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                         if (mMatcher.find()) {
                             strSourceChannels = mMatcher.group(1);
                         }
+                        // We need to find a substitute destination for each of these clips
                         System.out.println("Clip " + rs2.getInt(1) + " had to be moved from under clip " + intIndex );
                         moveClip(st, rs2.getInt(1), rs2.getLong(2), rs2.getLong(3), strSourceChannels, strDestChannels);
                         return intMovedClips;
-                        // We need to find a substitute destination for each of these clips
                     }
                 }
             }
@@ -413,16 +413,16 @@ public class jProjectWriter_AES31 extends jProjectWriter {
      * This method updates the database so the clip is on a different track where there is no overlap.
      * An alternative destination string needs to be created for each channel count.
      * For example if the original string was 6 then this is a mono channel, we need to look through the EVENT_LIST
-     * and TRACKS tables and find an unused destination number and return this instead, saving in case of more mono clips
+     * and TRACKS tables and find an unused destination number and use this instead, saving in case of more mono clips
      * which need to be moved later.
      * Same for stereo clips etc. We will store out newly created destinations in the TRACKS table.
      * @param st
-     * @param intIndex
-     * @param lDestIn
-     * @param lDestOut
-     * @param strTrackMap
-     * @param strDestChannels
-     * @return
+     * @param intIndex The index number of the clip to be moved in the EVENT_LIST table
+     * @param lDestIn The in point of the clip to be moved
+     * @param lDestOut The out point of the clip to be moved
+     * @param strSourceChannels The source channels for the clip in ADL format 
+     * @param strDestChannels the current destination channels for the clip in ADL format, this is the thing we're going to change
+     * @return Returns true if the clip data was changed in the EVENT_LIST table so the clip is now on a different track in the EDL
      */
     protected boolean moveClip (Statement st, int intIndex, long lDestIn, long lDestOut, String strSourceChannels, String strDestChannels) {
         Matcher mMatcher;
