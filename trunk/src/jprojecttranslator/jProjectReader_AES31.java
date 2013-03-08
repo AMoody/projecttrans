@@ -331,7 +331,12 @@ public class jProjectReader_AES31 extends jProjectReader {
                 strName = strName.substring(1, strName.length()-1);
                 strName = URLEncoder.encode(strName, "UTF-8");
                 strUMID = mMatcher.group(3);
-                strUMID = strUMID.substring(1, strUMID.length()-1);
+                if (strUMID.length() > 2) {
+                    strUMID = strUMID.substring(1, strUMID.length()-1);
+                } else {
+                    strUMID = "";
+                }
+                
                 strUMID = URLEncoder.encode(strUMID, "UTF-8");
                 
                 // Get the raw URI string
