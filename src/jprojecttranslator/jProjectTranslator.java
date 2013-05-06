@@ -66,7 +66,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss");
     public static DateTimeFormatter fmtHHMMSS = DateTimeFormat.forPattern("HHmmss");
     // This sets the number of messages displayed
-    private int intMessageQueueLength = 3;
+    private int intMessageQueueLength = 50;
     // This stores the last intMessageQueueLength messages
     private List listRecentActivityStrings = new ArrayList(intMessageQueueLength);
     private soundFilesTableModel ourTableModel = new soundFilesTableModel();
@@ -88,6 +88,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             listRecentActivityStrings.remove(0);
         }
         jTextArea1.setText(getActivityString());
+        jTextArea1.setCaretPosition(jTextArea1.getDocument().getLength());
     }
     /** This returns a string which contains the recent activity. Each line is terminated
     * in a new line character.*/
@@ -279,9 +280,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jPanel2.setPreferredSize(new java.awt.Dimension(600, 223));
 
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
 
         jTextArea1.setColumns(20);
+        jTextArea1.setEditable(false);
         jTextArea1.setRows(5);
         jScrollPane1.setViewportView(jTextArea1);
 
@@ -845,7 +846,14 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         dSeconds = dSeconds - (lMinutes*60);
         return String.format("%02d", lHours) + ":" + String.format("%02d", lMinutes) + ":" + String.format("%1$05.2f", dSeconds);
         
-    }    
+    } 
+    public static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+    }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
