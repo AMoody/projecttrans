@@ -6,11 +6,11 @@ package jprojecttranslator;
 
 import java.io.File;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.Vector;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -29,6 +29,8 @@ public class jProjectWriter extends Observable implements Observer{
     protected BWFProcessor tempBWFProc;
     protected File fDestFile;
     protected File fDestFolder;
+    protected long lUsableDiskSpace;
+    protected long lRequiredDiskSpace;
     public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
     // This is a holder for the main class so we can access it's methods
     protected jProjectTranslator oProjectTranslator;
@@ -76,6 +78,23 @@ public class jProjectWriter extends Observable implements Observer{
         lBWFProcessors = setBWFProcessors;
         fDestFile = setDestFile;
         fDestFolder = fDestFile.getParentFile();
+        lUsableDiskSpace = fDestFolder.getUsableSpace();
+        try {
+            strSQL = "SELECT SUM(intIndicatedFileSize) FROM PUBLIC.SOURCE_INDEX;";
+            st = conn.createStatement();
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();
+            lRequiredDiskSpace = rs.getLong(1);
+            if (lRequiredDiskSpace > lUsableDiskSpace) {
+                oProjectTranslator.writeStringToPanel("Unable to write file, insuffient free space on disk");
+                oProjectTranslator.writeStringToPanel("Disk space required is " + oProjectTranslator.humanReadableByteCount(lRequiredDiskSpace,false));
+                oProjectTranslator.writeStringToPanel("Disk space available is " + oProjectTranslator.humanReadableByteCount(lUsableDiskSpace,false));
+                return false;
+            } 
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+            return false;
+        }
         new jProjectWriter.SimpleThread("jProjectReader").start();
         return true;
     } 
