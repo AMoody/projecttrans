@@ -1,6 +1,5 @@
 package jprojecttranslator;
 
-import java.io.StringReader;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -257,8 +256,97 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             intCounter++;
             
         } while (intPrunedTracks > 0 && intCounter < 5000);
+        // Routes exist within the mixer and might contain gain automation data
+        Element xmlRoutes = xmlRoot.element("Routes");
+        Element xmlRoute;
+        for (Iterator i = xmlRoutes.elementIterator("Route");i.hasNext();) {
+            xmlRoute = (Element)i.next();
+            parseRouteData(xmlRoute, st);
+
+        }        
         return true;
     }
+    
+    /**
+     * 
+     * @param xmlRoute  The is an xml element containg the route
+     * @param st        This allows access to the database
+     */
+    protected void parseRouteData(Element xmlRoute, Statement st) {
+        // diskstream-id="1710"
+        if (xmlRoute.attributeValue("diskstream-id") == null) {
+            return;
+        }
+        int intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("diskstream-id"));
+        // We're only interested in gain automation data at the moment
+        if (xmlRoute.element("IO") != null && xmlRoute.element("IO").element("Automation") != null
+                && xmlRoute.element("IO").element("Automation").element("AutomationList") != null
+                && xmlRoute.element("IO").element("Automation").element("AutomationList").element("events") != null) {
+            System.out.println("Found automation data on disk stream ID  " + intAudioDiskstreamIndex);
+            // Found automation data for this track, need to check that there is not already region gain data
+            strSQL = "SELECT COUNT(*) FROM PUBLIC.FADER_LIST,PUBLIC.TRACKS WHERE "
+                    + "PUBLIC.FADER_LIST.intTrack = PUBLIC.TRACKS.intChannelOffset AND "
+                    + "PUBLIC.TRACKS.intIndex = " + intAudioDiskstreamIndex + ";";
+            try {
+                ResultSet rs = st.executeQuery(strSQL);
+                rs.next();
+                if (!(rs.wasNull()) &&  rs.getInt(1) == 0) {
+                    // Safe to process this data
+                    List listGainValues = new ArrayList();
+                    float fOffset, fValue;
+                    String strKey, strValue;
+                    String strEvents = xmlRoute.element("IO").element("Automation").element("AutomationList").elementText("events");
+                    StringTokenizer stTokens = new StringTokenizer(strEvents); 
+                    while(stTokens.hasMoreTokens()) {
+                        strKey = stTokens.nextToken();
+                        fOffset = java.lang.Math.round(Float.parseFloat(strKey));
+                        strValue = stTokens.nextToken();
+                        fValue = Float.parseFloat(strValue);
+                        // The list consists of keys which are the time in samples through the track, and values which are a float between 1 and 0.
+                        float[] fTemp = {fOffset, fValue};
+                        listGainValues.add(fTemp);
+                    } 
+                    strSQL = "SELECT intChannels, intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intAudioDiskstreamIndex + ";";
+                    rs = st.executeQuery(strSQL);
+                    rs.next();
+                    int intChannelCount = rs.getInt(1);
+                    int intMapOffset = rs.getInt(2);
+                    for(int i=1; i<intChannelCount + 1; i++){
+                        int j;
+                        if (listGainValues.size() > 0) {
+                        Iterator itr = listGainValues.iterator();
+                        float[] fTemp;
+                        while(itr.hasNext()) {
+                            fTemp = (float[])(itr.next());
+                            strSQL = "INSERT INTO PUBLIC.FADER_LIST (intTrack, intTime, strLevel) VALUES (" +
+                        (i + intMapOffset - 1) + ", " + (fTemp[0] ) + ",\'" + String.format("%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
+                            j = st.executeUpdate(strSQL);
+                            if (j == -1) {
+                                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                            }
+                        }
+                    }
+                        
+                    }
+                    
+                    
+                    
+                    
+                } else {
+                    System.out.println("Automation data on disk stream ID  " + intAudioDiskstreamIndex + " might over write existing data, skipping...");
+                    return;
+                }
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+            }
+            
+            
+            
+        }
+        
+    }
+    
+    
     /**
      * Parse the DiskStreams element from the Ardour project file.
      * This contains some information about the tracks in the EDL including the number of channels.
@@ -421,7 +509,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             strInFade = fadeIn.getFade();
             lInFade = fadeIn.getLength();
         }
-        // Get the fade in values
+        // Get the fade out values
         Element xmlFadeOut = xmlRegion.element("FadeOut");
         fade fadeOut = new fade();
         String strOutFade = "";
