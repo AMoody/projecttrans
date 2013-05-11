@@ -259,23 +259,205 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         // Routes exist within the mixer and might contain gain automation data
         Element xmlRoutes = xmlRoot.element("Routes");
         Element xmlRoute;
+        boolean bMergeReqd = false;
         for (Iterator i = xmlRoutes.elementIterator("Route");i.hasNext();) {
             xmlRoute = (Element)i.next();
-            parseRouteData(xmlRoute, st);
-
+            if (parseRouteData(xmlRoute, st) == 1) {
+                bMergeReqd = true;
+            }
         }        
+        if (bMergeReqd) {
+            // Automation data in FADER_LIST_T needs to be merged.
+            System.out.println("Automation data in FADER_LIST_T needs to be merged");
+            mergeAutomationData(st);
+        }
         return true;
     }
-    
+    protected void mergeAutomationData (Statement st) {
+        /**
+        * We need to merge the track automation data with the region automation data.
+        * Since the points in each set of data do not occur at the same time each point will need to be adjusted
+        * using the interpolated value from the other data set.
+        * So for example a point at t2 in region gain need to have an adjustment.
+        * The adjustment data comes from interpolating track gain data from t1 and t3.
+        * Since all the gains are in dB we just need to add the values.
+        * This might be easier to explain with a diagram, 
+        * TODO a drawing.
+        */
+        strSQL = "INSERT INTO FADER_LIST_R SELECT * FROM FADER_LIST;";
+        // (X0,Y0) is the nearest point before the current one.
+        // (X1,Y1) is the current point.
+        // (X2,Y2) is the nearest point after the current one.
+        float fX0, fY0, fX1, fY1, fX2, fY2;
+        int intCurrentTrack;
+        try {
+            int j = st.executeUpdate(strSQL);
+            if (j == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            strSQL = "SELECT intTrack, intTime, strLevel FROM FADER_LIST_R;";
+            ResultSet rs_R = st.executeQuery(strSQL);
+            ResultSet rs_T;
+            while (rs_R.next()) {
+                intCurrentTrack = rs_R.getInt(1);
+                // Check if there are any points for this audio track in FADER_LIST_T, if not, skip
+                strSQL = "SELECT COUNT(*) FROM FADER_LIST_T WHERE intTrack = " + intCurrentTrack + ";";
+                rs_T = st.executeQuery(strSQL);
+                rs_T.next();
+                if (rs_T.getInt(1) == 0) {
+                    continue;
+                }
+                fX1 = rs_R.getLong(2);
+                fY1 = Float.parseFloat(rs_R.getString(3));
+                // Get the nearest point in FADER_LIST_T before the current FADER_LIST_R point
+                strSQL = "SELECT MAX(intTime) FROM FADER_LIST_T WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime <= " + fX1 + ";";
+                rs_T = st.executeQuery(strSQL);
+                rs_T.next();
+                fX0 = rs_T.getLong(1);
+//                System.out.println("Seeking X0 time " + rs_T.getLong(1) + " _ " + fX0);
+                strSQL = "SELECT strLevel FROM FADER_LIST_T WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime = " + fX0 + ";";
+                rs_T = st.executeQuery(strSQL);
+                if (rs_T.next()) {
+                    fY0 = Float.parseFloat(rs_T.getString(1));
+                } else {
+                    fX0 = -1;
+                    fY0 = -1;
+                }
+                
+                // Get the nearest point in FADER_LIST_T after the current FADER_LIST_R point
+                strSQL = "SELECT MIN(intTime) FROM FADER_LIST_T WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime >= " + fX1 + ";";
+                rs_T = st.executeQuery(strSQL);
+                rs_T.next();
+                fX2 = rs_T.getLong(1);
+//                System.out.println("Seeking X2 time " + rs_T.getLong(1) + " _ " + fX2);
+                strSQL = "SELECT strLevel FROM FADER_LIST_T WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime = " + fX2 + ";";
+                rs_T = st.executeQuery(strSQL);
+                if (rs_T.next()) {
+                    fY2 = Float.parseFloat(rs_T.getString(1));
+                } else {
+                    fX2 = -1;
+                    fY2 = -1;
+                }
+                if (fX0 == -1) {
+                    fX0 = 0;
+                    fY0 = fY2;
+                }
+                if (fX2 == -1) {
+                    fX2 = fX1;
+                    fY2 = fY0;
+                }
+                // Apply the correction value
+                if (fX0 == fX2) {
+                    // Special case wherethe points are co-located
+                    fY1 = fY1 + fY2;
+                } else {
+                    fY1 = fY1 + fY0 + ((fX1-fX0) * (fY2-fY0) / (fX2-fX0));
+                }
+                // Update the value in FADER_LIST table
+                strSQL = "UPDATE FADER_LIST SET strLevel = " + String.format("%.2f", fY1) + " WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime = " + fX1 + ";";
+                j = st.executeUpdate(strSQL);
+                if (j == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                }
+            }
+            // The FADER_LIST_R data has been updated
+            
+            
+            strSQL = "SELECT intTrack, intTime, strLevel FROM FADER_LIST_T;";
+            rs_T = st.executeQuery(strSQL);
+            while (rs_T.next()) {
+                intCurrentTrack = rs_T.getInt(1);
+                // Check if there are any points for this audio track in FADER_LIST_R, if not, skip
+                strSQL = "SELECT COUNT(*) FROM FADER_LIST_R WHERE intTrack = " + intCurrentTrack + ";";
+                rs_R = st.executeQuery(strSQL);
+                rs_R.next();
+                if (rs_R.getInt(1) == 0) {
+                    continue;
+                }
+                fX1 = rs_T.getLong(2);
+                fY1 = Float.parseFloat(rs_T.getString(3));
+                // Get the nearest point in FADER_LIST_R before the current FADER_LIST_T point
+                strSQL = "SELECT MAX(intTime) FROM FADER_LIST_R WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime <= " + fX1 + ";";
+                rs_R = st.executeQuery(strSQL);
+                rs_R.next();
+                fX0 = rs_R.getLong(1);
+//                System.out.println("Seeking X0 time " + rs_R.getLong(1) + " _ " + fX0);
+                strSQL = "SELECT strLevel FROM FADER_LIST_R WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime = " + fX0 + ";";
+                rs_R = st.executeQuery(strSQL);
+                if (rs_R.next()) {
+                    fY0 = Float.parseFloat(rs_R.getString(1));
+                } else {
+                    fX0 = -1;
+                    fY0 = -1;
+                }
+                
+                // Get the nearest point in FADER_LIST_R after the current FADER_LIST_T point
+                strSQL = "SELECT MIN(intTime) FROM FADER_LIST_R WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime >= " + fX1 + ";";
+                rs_R = st.executeQuery(strSQL);
+                rs_R.next();
+                fX2 = rs_R.getLong(1);
+//                System.out.println("Seeking X2 time " + rs_R.getLong(1) + " _ " + fX2);
+                strSQL = "SELECT strLevel FROM FADER_LIST_R WHERE intTrack = " + intCurrentTrack + " AND "
+                        + "intTime = " + fX2 + ";";
+                rs_R = st.executeQuery(strSQL);
+                if (rs_R.next()) {
+                    fY2 = Float.parseFloat(rs_R.getString(1));
+                } else {
+                    fX2 = -1;
+                    fY2 = -1;
+                }
+                if (fX0 == -1) {
+                    fX0 = 0;
+                    fY0 = fY2;
+                }
+                if (fX2 == -1) {
+                    fX2 = fX1;
+                    fY2 = fY0;
+                }
+                // Apply the correction value
+                if (fX0 == fX2) {
+                    // Special case where the points are co-located
+                    fY1 = fY1 + fY2;
+                } else {
+                    fY1 = fY1 + fY0 + ((fX1-fX0) * (fY2-fY0) / (fX2-fX0));
+                }
+                // Update the value in FADER_LIST table
+                strSQL = "INSERT INTO FADER_LIST (intTrack, intTime, strLevel) VALUES (" +
+                    intCurrentTrack + ", " + fX1 + ",\'" + String.format("%.2f", fY1) + "\') ;";
+                j = st.executeUpdate(strSQL);
+                if (j == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                }
+            }
+            // The FADER_LIST_T data has been updated
+            
+            
+            
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        }
+    }
     /**
      * 
-     * @param xmlRoute  The is an xml element containg the route
+     * @param xmlRoute  The is an xml element containing the route
      * @param st        This allows access to the database
+     * @return          Return -1 is something was wrong, 0 if everything is OK and 1 if automation merge is required.
      */
-    protected void parseRouteData(Element xmlRoute, Statement st) {
+    protected int parseRouteData(Element xmlRoute, Statement st) {
         // diskstream-id="1710"
+        // This indicates if the automation data can be imported directly or if it 
+        // needs to be merged with existing data.
+        int intMergeReqd = 0;
         if (xmlRoute.attributeValue("diskstream-id") == null) {
-            return;
+            return -1;
         }
         int intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("diskstream-id"));
         // We're only interested in gain automation data at the moment
@@ -291,59 +473,73 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 ResultSet rs = st.executeQuery(strSQL);
                 rs.next();
                 if (!(rs.wasNull()) &&  rs.getInt(1) == 0) {
-                    // Safe to process this data
-                    List listGainValues = new ArrayList();
-                    float fOffset, fValue;
-                    String strKey, strValue;
-                    String strEvents = xmlRoute.element("IO").element("Automation").element("AutomationList").elementText("events");
-                    StringTokenizer stTokens = new StringTokenizer(strEvents); 
-                    while(stTokens.hasMoreTokens()) {
-                        strKey = stTokens.nextToken();
-                        fOffset = java.lang.Math.round(Float.parseFloat(strKey));
-                        strValue = stTokens.nextToken();
-                        fValue = Float.parseFloat(strValue);
-                        // The list consists of keys which are the time in samples through the track, and values which are a float between 1 and 0.
-                        float[] fTemp = {fOffset, fValue};
-                        listGainValues.add(fTemp);
-                    } 
-                    strSQL = "SELECT intChannels, intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intAudioDiskstreamIndex + ";";
-                    rs = st.executeQuery(strSQL);
-                    rs.next();
-                    int intChannelCount = rs.getInt(1);
-                    int intMapOffset = rs.getInt(2);
-                    for(int i=1; i<intChannelCount + 1; i++){
-                        int j;
-                        if (listGainValues.size() > 0) {
-                        Iterator itr = listGainValues.iterator();
-                        float[] fTemp;
-                        while(itr.hasNext()) {
-                            fTemp = (float[])(itr.next());
-                            strSQL = "INSERT INTO PUBLIC.FADER_LIST (intTrack, intTime, strLevel) VALUES (" +
-                        (i + intMapOffset - 1) + ", " + (fTemp[0] ) + ",\'" + String.format("%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
-                            j = st.executeUpdate(strSQL);
-                            if (j == -1) {
-                                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
-                            }
-                        }
-                    }
-                        
-                    }
-                    
-                    
-                    
+                    // This data can be imported straight in to the FADER_LIST table
+                    importEventData(xmlRoute.element("IO").element("Automation").element("AutomationList").element("events")
+                            , st, "PUBLIC.FADER_LIST", intAudioDiskstreamIndex);
                     
                 } else {
-                    System.out.println("Automation data on disk stream ID  " + intAudioDiskstreamIndex + " might over write existing data, skipping...");
-                    return;
+
+                    // FADER_LIST_T will have the track automation data
+                    importEventData(xmlRoute.element("IO").element("Automation").element("AutomationList").element("events")
+                            , st, "PUBLIC.FADER_LIST_T", intAudioDiskstreamIndex);
+                    
+                    intMergeReqd = 1;
+                    System.out.println("Automation data on disk stream ID  " + intAudioDiskstreamIndex + " will need to be merged");
                 }
             } catch (java.sql.SQLException e) {
                 System.out.println("Error on SQL " + strSQL + e.toString());
             }
+            return intMergeReqd;
             
             
             
         }
+        return -1;
         
+    }
+    
+    protected void importEventData(Element xmlEvent, Statement st, String strTable, int intAudioDiskstreamIndex) {
+        List listGainValues = new ArrayList();
+        float fOffset, fValue;
+        String strKey, strValue;
+        String strEvents = xmlEvent.getText();
+        StringTokenizer stTokens = new StringTokenizer(strEvents); 
+        while(stTokens.hasMoreTokens()) {
+            strKey = stTokens.nextToken();
+            fOffset = java.lang.Math.round(Float.parseFloat(strKey));
+            strValue = stTokens.nextToken();
+            fValue = Float.parseFloat(strValue);
+            // The list consists of keys which are the time in samples through the track, and values which are a float between 1 and 0.
+            float[] fTemp = {fOffset, fValue};
+            listGainValues.add(fTemp);
+        } 
+        strSQL = "SELECT intChannels, intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intAudioDiskstreamIndex + ";";
+        try {
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();
+            int intChannelCount = rs.getInt(1);
+            int intMapOffset = rs.getInt(2);
+            for(int i=1; i<intChannelCount + 1; i++){
+                int j;
+                if (listGainValues.size() > 0) {
+                Iterator itr = listGainValues.iterator();
+                float[] fTemp;
+                while(itr.hasNext()) {
+                    fTemp = (float[])(itr.next());
+                    strSQL = "INSERT INTO " + strTable + " (intTrack, intTime, strLevel) VALUES (" +
+                    (i + intMapOffset - 1) + ", " + (fTemp[0] ) + ",\'" + String.format("%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
+                        j = st.executeUpdate(strSQL);
+                        if (j == -1) {
+                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                        }
+                    }
+                }
+
+            }             
+        } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+            }
+       
     }
     
     
