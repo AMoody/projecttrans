@@ -92,11 +92,28 @@ public class database {
             /** Create the FADER_LIST table
              * This contains information about the gain automation
              */
-            strSQL = "CREATE TABLE PUBLIC.FADER_LIST (intTrack INTEGER NOT NULL, intTime BIGINT NOT NULL, strLevel VARCHAR(16)" +
+            strSQL = "CREATE TABLE PUBLIC.FADER_LIST (intTrack INTEGER NOT NULL, "
+                    + "intTime BIGINT NOT NULL, strLevel VARCHAR(16)" +
                     ");";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
+            }
+            /**
+             * Create two additional FADER_LIST tables, these are used in the ardour reader 
+             * so that region and track gain automation can be merged.
+             */
+            strSQL = "CREATE TABLE PUBLIC.FADER_LIST_T (intTrack INTEGER NOT NULL, "
+                    + "intTime BIGINT NOT NULL, strLevel VARCHAR(16)" +
+                    ");";i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            strSQL = "CREATE TABLE PUBLIC.FADER_LIST_R (intTrack INTEGER NOT NULL, "
+                    + "intTime BIGINT NOT NULL, strLevel VARCHAR(16)" +
+                    ");";i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
             }
             /**
              * Create the ARDOUR_SOURCES table

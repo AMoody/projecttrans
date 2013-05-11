@@ -123,6 +123,16 @@ public class jProjectReader extends Observable {
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
             } 
+            strSQL = "DELETE FROM PUBLIC.FADER_LIST_R;";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            } 
+            strSQL = "DELETE FROM PUBLIC.FADER_LIST_T;";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            } 
             strSQL = "DELETE FROM PUBLIC.PROJECT;";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
