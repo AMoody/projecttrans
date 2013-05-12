@@ -780,7 +780,8 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 while (rs.next()) {
                     lTime = rs.getLong(1);
                     fLevel = Float.parseFloat(rs.getString(2));
-                    fLevel = (float)Math.exp(fLevel/20);
+                    // fLevel = (float)Math.exp(fLevel/20);
+                    fLevel = (float)Math.pow(10,fLevel/20);
                     strEvents = strEvents + "" + lTime + " " + fLevel + "\n";
                 }
             } catch (java.sql.SQLException e) {
