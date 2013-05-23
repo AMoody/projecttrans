@@ -823,12 +823,14 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         try {
             ResultSet rs = st.executeQuery(strSQL);
             while (rs.next()) {
-                // Look for any underlying regions
                 intIndex = rs.getInt(1);
                 lDestIn = rs.getLong(2);
                 lDestOut = rs.getLong(3);
                 intLayer = rs.getInt(4);
-                intTrackIndex = rs.getInt(5);
+                intTrackIndex = rs.getInt(5);                
+                /** Look for any underlying regions which start earlier or equal and end later or equal.
+                 *  These underlying regions will be split up
+                 */
                 strSQL = "SELECT COUNT(*) FROM PUBLIC.EVENT_LIST WHERE "
                         + "intDestIn <= " + lDestIn + "AND "
                         + "intDestOut >= " + lDestOut + "AND "
@@ -849,6 +851,19 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                         splitRegion(rs2.getInt(1), lDestIn, lDestOut, st);
                     }
                 }
+                /**
+                 * Delete underlying regions which are shorter than our current region
+                 */
+                strSQL = "DELETE FROM PUBLIC.EVENT_LIST WHERE "
+                        + "intDestIn >= " + lDestIn + "AND "
+                        + "intDestOut <= " + lDestOut + "AND "
+                        + "intLayer < " + intLayer + "AND "
+                        + "intTrackIndex = " + intTrackIndex + ";";
+                int i = st.executeUpdate(strSQL);
+                if (i == -1) {
+                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                } 
+                
             }
         } catch (java.sql.SQLException e) {
             System.out.println("Error on SQL " + strSQL + e.toString());
@@ -871,7 +886,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             }
             // Truncate the newly created end region and give in a valid index number
             // First we need to find the current value of the intDestIn point as the intSourceIn point needs to move too.
-            strSQL = "SELECT intSourceIn FROM PUBLIC.EVENT_LIST2 WHERE intIndex = " + intIndex + ";";
+            strSQL = "SELECT intDestIn FROM PUBLIC.EVENT_LIST2 WHERE intIndex = " + intIndex + ";";
             rs = st.executeQuery(strSQL);
             rs.next();
             long lOldDestIn = rs.getLong(1);
