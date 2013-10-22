@@ -231,9 +231,12 @@ public class fade {
                 fValue1 = Float.parseFloat(mMatcher.group(2));
                 fValue2 = Float.parseFloat(mMatcher.group(3));
                 fValue3 = Float.parseFloat(mMatcher.group(4));
-                fValue1 = (float)Math.exp(fValue1/20);
-                fValue2 = (float)Math.exp(fValue2/20);
-                fValue3 = (float)Math.exp(fValue3/20);
+                fValue1 = (float)Math.pow(10,fValue1/20);
+                fValue2 = (float)Math.pow(10,fValue2/20);
+                fValue3 = (float)Math.pow(10,fValue3/20);
+//                fValue1 = (float)Math.exp(fValue1/20);
+//                fValue2 = (float)Math.exp(fValue2/20);
+//                fValue3 = (float)Math.exp(fValue3/20);
                 if (strDirection.equalsIgnoreCase("out")) {
                     fValue0 = 1;
                     fValue4 = 0;
