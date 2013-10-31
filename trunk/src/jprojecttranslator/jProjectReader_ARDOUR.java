@@ -109,14 +109,21 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 strName = URLDecoder.decode(rs.getString(2), "UTF-8");
                 strSourceFile = URLDecoder.decode(rs.getString(3), "UTF-8");
                 fLocalSourceFile = new File(fAudioFolder, strSourceFile);
-                tempBWFProc = new BWFProcessor();
-                tempBWFProc.setSrcFile(fLocalSourceFile);
-                tempBWFProc.setMultipart(false);
                 if (fLocalSourceFile.exists()) {
                     System.out.println("Source file " + fLocalSourceFile + " found");
                 } else {
-                    System.out.println("Source file " + fLocalSourceFile + " not found");
+                    // Sometimes the file name also contains the full path.
+                    fLocalSourceFile = new File(strSourceFile);
+                    if (fLocalSourceFile.exists()) {
+                        System.out.println("Source file " + fLocalSourceFile + " found");
+                    } else {
+                        System.out.println("Source file " + fLocalSourceFile + " not found");
+                        continue;
+                    }
                 }
+                tempBWFProc = new BWFProcessor();
+                tempBWFProc.setSrcFile(fLocalSourceFile);
+                tempBWFProc.setMultipart(false);
                 if (fLocalSourceFile.exists() && fLocalSourceFile.canRead() && tempBWFProc.readFile(0,fLocalSourceFile.length())) {
                     lIndicatedFileSize = tempBWFProc.getIndicatedFileSize();
                     lSampleRate = tempBWFProc.getSampleRate();
