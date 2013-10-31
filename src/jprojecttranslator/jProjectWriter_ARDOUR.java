@@ -239,7 +239,8 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         pPatternChannels = Pattern.compile("(\\d*)~(\\d*)"); // This should match the track map string, e.g. 1~2 etc
         String strDestChannels;
         int intChannels = 1;
-        int intAudioChannelID = 1;
+        int intChannelOffset = 0;
+        // int intAudioChannelID = 1;
         try {
             strSQL = "DELETE FROM PUBLIC.TRACKS;";
             int j = st.executeUpdate(strSQL);
@@ -260,10 +261,14 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                     mMatcher = pPatternChannels.matcher(strDestChannels);
                     if (mMatcher.find()) {
                         intChannels = Integer.parseInt(mMatcher.group(2)) -  Integer.parseInt(mMatcher.group(1)) + 1;
+                        intChannelOffset = Integer.parseInt(mMatcher.group(2));
                     } else {
                         intChannels = 1;
+                        intChannelOffset = Integer.parseInt(strDestChannels);
                     }
-                    strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, intChannels, strChannelMap, strName) VALUES (" + intIdCounter + ", " + intChannels + ", \'" + strDestChannels + "\', \'Audio " + intAudioChannelID + "\');";
+                    // Need to calculate the channel offset so we can sort on it later to preserve the channel order.
+                    // intAudioChannelID = intChannelOffset;
+                    strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, intChannels, strChannelMap, strName, intChannelOffset) VALUES (" + intIdCounter + ", " + intChannels + ", \'" + strDestChannels + "\', \'Audio " + strDestChannels + "\', " + intChannelOffset + ");";
                     j = st.executeUpdate(strSQL);
                     if (j == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -273,13 +278,13 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                     if (j == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                     }
-                    xmlDiskStreams.addElement("AudioDiskstream").addAttribute("flags", "Recordable").addAttribute("channels", "" + intChannels).addAttribute("playlist", "Audio " + intAudioChannelID + ".1").addAttribute("speed", "1").addAttribute("name", "Audio " + intAudioChannelID).addAttribute("id", "" + intIdCounter);
+                    xmlDiskStreams.addElement("AudioDiskstream").addAttribute("flags", "Recordable").addAttribute("channels", "" + intChannels).addAttribute("playlist", "Audio " + strDestChannels + ".1").addAttribute("speed", "1").addAttribute("name", "Audio " + strDestChannels).addAttribute("id", "" + intIdCounter);
                     intIdCounter++;
-                    intAudioChannelID++;
+                    // intAudioChannelID++;
                 }
             }
             // The TRACK table is filled in and the AudioDiskstreams created
-            strSQL = "SELECT intIndex, strName FROM PUBLIC.TRACKS ORDER BY intIndex";
+            strSQL = "SELECT intIndex, strName FROM PUBLIC.TRACKS ORDER BY intChannelOffset;";
             rs = st.executeQuery(strSQL);
             ResultSet rs2;
             int intTrackIndex;
@@ -590,7 +595,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         int intChannels;
         int intEditor = 1;
         try {
-            strSQL = "SELECT intIndex, intChannels, strChannelMap, strName FROM PUBLIC.TRACKS;";
+            strSQL = "SELECT intIndex, intChannels, strChannelMap, strName FROM PUBLIC.TRACKS ORDER BY intChannelOffset;";
             ResultSet rs = st.executeQuery(strSQL);
             while (rs.next()) {
                 xmlRoute = xmlRoutes.addElement("Route");
