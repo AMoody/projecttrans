@@ -232,7 +232,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
     private void fillDiskStreamsandPlaylistsElement(Element xmlDiskStreams, Element xmlPlaylists){
         // First we need to know how many tracks there are in the 
         // playlist by looking at the entries on the edl, these are in the EVENT_LIST table.
-        ResultSet rs;
+        ResultSet rs, rs2;
         Matcher mMatcher;
         Pattern pPatternChannelMap, pPatternChannels;
         pPatternChannelMap = Pattern.compile("(\\d*~\\d*|\\d*)\\s*(\\d*~\\d*|\\d*)"); // This should match the track map string, e.g. 1~2 3~4 etc
@@ -240,7 +240,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         String strDestChannels;
         int intChannels = 1;
         int intChannelOffset = 0;
-        // int intAudioChannelID = 1;
+        int intExistingIndex;
         try {
             strSQL = "DELETE FROM PUBLIC.TRACKS;";
             int j = st.executeUpdate(strSQL);
@@ -266,27 +266,50 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                         intChannels = 1;
                         intChannelOffset = Integer.parseInt(strDestChannels);
                     }
-                    // Need to calculate the channel offset so we can sort on it later to preserve the channel order.
-                    // intAudioChannelID = intChannelOffset;
-                    strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, intChannels, strChannelMap, strName, intChannelOffset) VALUES (" + intIdCounter + ", " + intChannels + ", \'" + strDestChannels + "\', \'Audio " + strDestChannels + "\', " + intChannelOffset + ");";
-                    j = st.executeUpdate(strSQL);
-                    if (j == -1) {
-                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    // Before creating an entry in the tracks table we need to be sure it doesn't exist already.
+                    strSQL = "SELECT COUNT(*) FROM PUBLIC.TRACKS WHERE strChannelMap = \'" + strDestChannels + "\';";
+                    st = conn.createStatement();
+                    rs2 = st.executeQuery(strSQL);
+                    rs2.next();
+                    if (!(rs2.wasNull()) ) {
+                        if (rs2.getInt(1) == 0) {
+                            // Need to calculate the channel offset so we can sort on it later to preserve the channel order.
+                            strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, intChannels, strChannelMap, strName, intChannelOffset) VALUES (" + intIdCounter + ", " + intChannels + ", \'" + strDestChannels + "\', \'Audio " + strDestChannels + "\', " + intChannelOffset + ");";
+                            j = st.executeUpdate(strSQL);
+                            if (j == -1) {
+                                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                            }
+
+                            strSQL = "UPDATE PUBLIC.EVENT_LIST SET intTrackIndex = " + intIdCounter + " WHERE strTrackMap LIKE \'% " + strDestChannels + "\';";
+                            j = st.executeUpdate(strSQL);
+                            if (j == -1) {
+                                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                            }
+                            xmlDiskStreams.addElement("AudioDiskstream").addAttribute("flags", "Recordable").addAttribute("channels", "" + intChannels).addAttribute("playlist", "Audio " + strDestChannels + ".1").addAttribute("speed", "1").addAttribute("name", "Audio " + strDestChannels).addAttribute("id", "" + intIdCounter);
+                            intIdCounter++;
+                        } else {
+                            // This track already exists
+                            strSQL = "SELECT intIndex FROM PUBLIC.TRACKS WHERE strChannelMap = \'" + strDestChannels + "\';";
+                            st = conn.createStatement();
+                            rs2 = st.executeQuery(strSQL);
+                            rs2.next();
+                            intExistingIndex = rs2.getInt(1);
+                            strSQL = "UPDATE PUBLIC.EVENT_LIST SET intTrackIndex = " + intExistingIndex + " WHERE strTrackMap LIKE \'% " + strDestChannels + "\';";
+                            j = st.executeUpdate(strSQL);
+                            if (j == -1) {
+                                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                            }
+                            xmlDiskStreams.addElement("AudioDiskstream").addAttribute("flags", "Recordable").addAttribute("channels", "" + intChannels).addAttribute("playlist", "Audio " + strDestChannels + ".1").addAttribute("speed", "1").addAttribute("name", "Audio " + strDestChannels).addAttribute("id", "" + intExistingIndex);
+                            
+                                    
+                        }
                     }
-                    strSQL = "UPDATE PUBLIC.EVENT_LIST SET intTrackIndex = " + intIdCounter + " WHERE strTrackMap LIKE \'% " + strDestChannels + "\';";
-                    j = st.executeUpdate(strSQL);
-                    if (j == -1) {
-                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
-                    }
-                    xmlDiskStreams.addElement("AudioDiskstream").addAttribute("flags", "Recordable").addAttribute("channels", "" + intChannels).addAttribute("playlist", "Audio " + strDestChannels + ".1").addAttribute("speed", "1").addAttribute("name", "Audio " + strDestChannels).addAttribute("id", "" + intIdCounter);
-                    intIdCounter++;
                     // intAudioChannelID++;
                 }
             }
             // The TRACK table is filled in and the AudioDiskstreams created
             strSQL = "SELECT intIndex, strName FROM PUBLIC.TRACKS ORDER BY intChannelOffset;";
             rs = st.executeQuery(strSQL);
-            ResultSet rs2;
             int intTrackIndex;
             String strTrackName;
             Element xmlPlaylist, xmlRegion;
