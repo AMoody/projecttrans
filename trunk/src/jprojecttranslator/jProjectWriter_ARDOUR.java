@@ -321,20 +321,21 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                         + "intDestIn, intDestOut, strInFade, intInFade, strOutFade, intOutFade FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + intTrackIndex + ";";
                 rs2 = st.executeQuery(strSQL);
                 while (rs2.next()) {
-                    // Need to find out how many audio tracks are in the region
-//                    mMatcher = pPatternChannelMap.matcher(rs2.getString(4));
-//                    intChannels = 1;
-//                    if (mMatcher.find()) {
-//                        // The matcher should have the destination channels, e.g. 3~4 or just 4
-//                        strDestChannels = mMatcher.group(2);
-//                        // Try to find out how many channels there are
-//                        mMatcher = pPatternChannels.matcher(strDestChannels);
-//                        if (mMatcher.find()) {
-//                            intChannels = Integer.parseInt(mMatcher.group(2)) -  Integer.parseInt(mMatcher.group(1)) + 1;
-//                        }
-//                    }
                     // Get a region from the SOURCE_INDEX table which we can then modify
                     xmlRegion = getRegionElement(rs2.getInt(3));
+                    // Need to find out how many audio tracks are in the region
+                    mMatcher = pPatternChannelMap.matcher(rs2.getString(4));
+                    intChannels = 1;
+                    if (mMatcher.find()) {
+                        // The matcher should have the destination channels, e.g. 3~4 or just 4
+                        strDestChannels = mMatcher.group(2);
+                        // Try to find out how many channels there are
+                        mMatcher = pPatternChannels.matcher(strDestChannels);
+                        if (mMatcher.find()) {
+                            intChannels = Integer.parseInt(mMatcher.group(2)) -  Integer.parseInt(mMatcher.group(1)) + 1;
+                        }
+                    }
+                    xmlRegion.attribute("channels").setValue("" + intChannels);
                     // Update the FadeIn element and flags if required.
                     // Opaque,DefaultFadeIn,DefaultFadeOut,Automatic,WholeFile,FadeIn,FadeOut
                     String strFlags = "";
