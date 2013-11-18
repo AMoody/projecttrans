@@ -497,7 +497,9 @@ public class BWFProcessor extends Observable implements Runnable {
                 // return;
             }
         }
-        if (lTotalFileSize != lCalculatedFileSize && !bMultipart) {
+        // Some audio editors e.g. Logic pro leave some extra random bytes at the end of the file, we can discard these.
+        if ((lTotalFileSize - lCalculatedFileSize < 9) && !bMultipart) {
+//        if (lTotalFileSize != lCalculatedFileSize && !bMultipart) {
             errorcode = 1;
             System.out.println("Error, can not process input file " + srcFile+ " calculated and total file sizes do not match.");
 //            jMediaHarvest.writeErrorString("Error, can not process input file " + srcFile+ " calculated and total file sizes do not match.");
