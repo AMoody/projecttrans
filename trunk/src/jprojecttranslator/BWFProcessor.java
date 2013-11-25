@@ -8,14 +8,15 @@ import java.io.*;
 import java.util.*;
 import java.nio.*;
 import java.nio.channels.FileChannel;
+import java.text.SimpleDateFormat;
 import java.util.Observable;
 /**
  * A general purpose handler for BWF files.
  * @author  arth
  * If both a source and destination file is specified it can copy and modify a bwav file. 
  * Chunk sizes are recalculated
- * A bext chunk can be read, modified, created etc.
- * If only a source file is specified it allows you to read metadata from the various chunks including the bext chunk if it exists
+ * A bext Chunk can be read, modified, created etc.
+ * If only a source file is specified it allows you to read metadata from the various chunks including the bext Chunk if it exists
  */
 public class BWFProcessor extends Observable implements Runnable {
     private long lSourceFileStart = 0;
@@ -26,12 +27,12 @@ public class BWFProcessor extends Observable implements Runnable {
     private static int objectCount = 0;
     private File srcFile;
     private File destFile;
-    /** This is a vector which contains objects of type chunk. These are chunks from the start of the<br>
-     * wave file up to but not including the data chunk.
+    /** This is a vector which contains objects of type Chunk. These are chunks from the start of the<br>
+     * wave file up to but not including the data Chunk.
      */
     public Vector startChunks = new Vector(5);
-    /** This is a vector which contains objects of type chunk. These are chunks from the end of the<br>
-     * wave file starting after (but not including) the data chunk.
+    /** This is a vector which contains objects of type Chunk. These are chunks from the end of the<br>
+     * wave file starting after (but not including) the data Chunk.
      */
     public Vector endChunks = new Vector(3);
     private ByteBuffer sourceBytes = ByteBuffer.allocate(262144);
@@ -74,11 +75,14 @@ public class BWFProcessor extends Observable implements Runnable {
     private boolean bDebug = true;
     private Iterator chunkIterator;
     /* This string stores the originator reference, 
-     * when the write process is started the bext chunk is deleted
+     * when the write process is started the bext Chunk is deleted
      * but we might still need this string so we save it here
      */
     private String strOriginatorReference = "";
-    
+    /** This is used to store the record date.*/
+    private Date dRecordDate;
+    /** This is used to parse dates from bext chunks in wave files.*/
+    private SimpleDateFormat fmtBwfDateFormat = new SimpleDateFormat("yyyy-MM-ddHH-mm-ss"); 
     
     
     
@@ -406,10 +410,10 @@ public class BWFProcessor extends Observable implements Runnable {
          * The total file size is actually 12 bytes more than this due to the RIFF/WAVE and filesize characters at the beginning of the file.
          */
         lCalculatedFileSize = dataChunkSize + 8 + 12;
-        // Thats the data chunk added, now to add the other chucks.
+        // Thats the data Chunk added, now to add the other chucks.
         chunkIterator = startChunks.iterator();
         while (chunkIterator.hasNext()){
-            lCalculatedFileSize = lCalculatedFileSize + 8 + ((chunk)chunkIterator.next()).getoriginalckSIZE();
+            lCalculatedFileSize = lCalculatedFileSize + 8 + ((Chunk)chunkIterator.next()).getoriginalckSIZE();
         }
         // If lCalculatedFileSize is equal to lIndicatedFileSize then we have read all the chunks.
         System.out.println("Total file size is " + lTotalFileSize);
@@ -426,7 +430,7 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         if (lIndicatedFileSize != lCalculatedFileSize) {
             /** Either the file is corrupt or there are more chunks at the end.
-             * To read the end of the file we need to calculate where the data chunk ends
+             * To read the end of the file we need to calculate where the data Chunk ends
              * This should be at lCalculatedFileSize + 8
              * We also need to know the actual length of the file so we can read the end of it
              * in to a new ByteBuffer, this should be size of srcFile.
@@ -473,14 +477,14 @@ public class BWFProcessor extends Observable implements Runnable {
             extractChunks(extraSourceBytes,endChunks);
             // The extra chunks have now been read so the file size calculation should be OK.
             lCalculatedFileSize = dataChunkSize + 8 + 12;
-            // Thats the data chunk added, now to add the other chucks.
+            // Thats the data Chunk added, now to add the other chucks.
             chunkIterator = startChunks.iterator();
             while (chunkIterator.hasNext()){
-                lCalculatedFileSize = lCalculatedFileSize + 8 + ((chunk)chunkIterator.next()).getoriginalckSIZE();
+                lCalculatedFileSize = lCalculatedFileSize + 8 + ((Chunk)chunkIterator.next()).getoriginalckSIZE();
             }
             chunkIterator = endChunks.iterator();
             while (chunkIterator.hasNext()){
-                lCalculatedFileSize = lCalculatedFileSize + 8 + ((chunk)chunkIterator.next()).getoriginalckSIZE();
+                lCalculatedFileSize = lCalculatedFileSize + 8 + ((Chunk)chunkIterator.next()).getoriginalckSIZE();
             }
             // If lCalculatedFileSize is equal to lIndicatedFileSize then we have read all the chunks.
             // System.out.println("Indicated file size is " + lIndicatedFileSize);
@@ -498,7 +502,7 @@ public class BWFProcessor extends Observable implements Runnable {
             }
         }
         // Some audio editors e.g. Logic pro leave some extra random bytes at the end of the file, we can discard these.
-        if ((lTotalFileSize - lCalculatedFileSize < 9) && !bMultipart) {
+        if ((lTotalFileSize - lCalculatedFileSize > 9) && !bMultipart) {
 //        if (lTotalFileSize != lCalculatedFileSize && !bMultipart) {
             errorcode = 1;
             System.out.println("Error, can not process input file " + srcFile+ " calculated and total file sizes do not match.");
@@ -524,7 +528,7 @@ public class BWFProcessor extends Observable implements Runnable {
     /**
      * Write an audio file.
      * The chunks at the start of the file will include any edited or added chunks.
-     * The data chunk and end chunks will simply be copied from the source file.
+     * The data Chunk and end chunks will simply be copied from the source file.
      * The sizes written to the file have been recalculated to allow for the new or edited chunks.
      * @param setDestFile   This is a File object which represents where the file should be written. 
      */
@@ -552,18 +556,18 @@ public class BWFProcessor extends Observable implements Runnable {
         // First update the first 12 bytes of the ByteBuffer sourceBytes with the new file size
         // So we need to calculate the new file size.        
         lCalculatedFileSize = dataChunkSize + 8 + 12;
-        chunk tempChunk;
-        // Thats the data chunk size added in, now to add up the other chucks.
+        Chunk tempChunk;
+        // Thats the data Chunk size added in, now to add up the other chucks.
         chunkIterator = startChunks.iterator();
         while (chunkIterator.hasNext()){
-            tempChunk = ((chunk)chunkIterator.next());
+            tempChunk = ((Chunk)chunkIterator.next());
             lCalculatedFileSize = lCalculatedFileSize + 8 + tempChunk.getckSIZE();
             System.out.println("Chunk " + tempChunk.getckID() + "  " + tempChunk.getckSIZE());
         }
         System.out.println("Chunk data  " + dataChunkSize);
         chunkIterator = endChunks.iterator();
         while (chunkIterator.hasNext()){
-            tempChunk = ((chunk)chunkIterator.next());
+            tempChunk = ((Chunk)chunkIterator.next());
             lCalculatedFileSize = lCalculatedFileSize + 8 + tempChunk.getckSIZE();
             System.out.println("Chunk " + tempChunk.getckID() + "  " + tempChunk.getckSIZE());
         }            
@@ -576,13 +580,13 @@ public class BWFProcessor extends Observable implements Runnable {
         try {
             outChannel.write(sourceBytes);
             lByteWriteCounter = lByteWriteCounter + 12;
-            // Thats the first 12 bytes written, now we need to add the bext chunk
+            // Thats the first 12 bytes written, now we need to add the bext Chunk
             chunkIterator = startChunks.iterator();  
             while (chunkIterator.hasNext()){
-                  tempChunk = (chunk)chunkIterator.next();
-                  // Is this the bext chunk?
+                  tempChunk = (Chunk)chunkIterator.next();
+                  // Is this the bext Chunk?
                   if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
-                      // Yes we have found the bext chunk, this needs to go at the start of the file
+                      // Yes we have found the bext Chunk, this needs to go at the start of the file
                       outChannel.write(tempChunk.getBytes());
                       lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
                       // Now remove it from the Vector so it does not get added again
@@ -594,11 +598,11 @@ public class BWFProcessor extends Observable implements Runnable {
             // Now write the data from the other start chunks
             chunkIterator = startChunks.iterator();
             while (chunkIterator.hasNext()){
-                tempChunk = (chunk)chunkIterator.next();
+                tempChunk = (Chunk)chunkIterator.next();
                 outChannel.write(tempChunk.getBytes());
                 lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
             }
-            // The start chunks are written, now we need to add the remainder of the source file starting from the data chunk.
+            // The start chunks are written, now we need to add the remainder of the source file starting from the data Chunk.
             ByteBuffer byteTempData = ByteBuffer.allocate(8);
             byteTempData.position(0);
             byteTempData.order(ByteOrder.LITTLE_ENDIAN);
@@ -673,8 +677,8 @@ public class BWFProcessor extends Observable implements Runnable {
         }         
     }
     /**
-     * This will process the given Byte Buffer and add chunk objects to the given vector.
-     * The values of errorcount and data chunk information will be updated if required.
+     * This will process the given Byte Buffer and add Chunk objects to the given vector.
+     * The values of errorcount and data Chunk information will be updated if required.
      * When this method is called the pointer must be at the start of the ckID
      * @param inputData     This is a ByteBuffer which should contain some chunks.
      * @param chunkVector   This is a vector to which the chunks will be added.
@@ -707,51 +711,51 @@ public class BWFProcessor extends Observable implements Runnable {
             }
             // Position now eight bytes in
             if (tempckID.equalsIgnoreCase("data")) {
-                // We have found the data chunk, don't want to load this in, just save the size.
+                // We have found the data Chunk, don't want to load this in, just save the size.
                 dataChunkSize = tempckSIZE;
                 dataChunkOffset = lSourceFileStart + inputData.position() - 8; // This is the offset from the start of file
-                // System.out.println("Data chunk size is   " + dataChunkSize);
+                // System.out.println("Data Chunk size is   " + dataChunkSize);
                 return;
             } else {
                 try {
 
                     inputData.position(inputData.position() - 8);
-                    // Position now back at the start of the chunk
+                    // Position now back at the start of the Chunk
                     inputData.limit(inputData.position() + (int)tempckSIZE + 8);
-                    // Limit now set at end of current chunk
+                    // Limit now set at end of current Chunk
                 } catch (IllegalArgumentException e) {
                     errorcode = 1;
                     System.out.println("Unexpectedly reached the end of data while extracting chunk " + tempckID + ", file could be corrupt!\nError code is " + e);
                     return;
                 }
                 if (tempckID.equalsIgnoreCase("bext")) {
-                    chunkVector.add(new chunk(inputData.slice(),858));
+                    chunkVector.add(new Chunk(inputData.slice(),858));
                 } else {
-                    chunkVector.add(new chunk(inputData.slice()));
+                    chunkVector.add(new Chunk(inputData.slice()));
                 }
 
                 // Chunk created
                 inputData.limit(inputData.capacity());
                 // Limit set back to the end
                 inputData.position(inputData.position() + (int)tempckSIZE + 8);
-                // Position now set at start of next chunk                
+                // Position now set at start of next Chunk                
 
             } 
         }
         
     }
     /**
-     * This is used to find out the indicated sample rate of the file from the fmt chunk
+     * This is used to find out the indicated sample rate of the file from the fmt Chunk
      * @return Returns an int, e.g. 48000
      */
     public int getSampleRate(){
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         while (chunkIterator.hasNext()){
-              tempChunk = (chunk)chunkIterator.next();
-              // Is this the fmt chunk?
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the fmt Chunk?
               if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
-                  // Yes we have found the fmt chunk.
+                  // Yes we have found the fmt Chunk.
                   ByteBuffer byteData = tempChunk.getBytes();
                   byteData.order(ByteOrder.LITTLE_ENDIAN);
                   byteData.position(12);
@@ -762,20 +766,20 @@ public class BWFProcessor extends Observable implements Runnable {
         return 0;
     }
     /**
-     * This gets the byte rate which is indicated in the fmt chunk.
+     * This gets the byte rate which is indicated in the fmt Chunk.
      * This is the average byte rate and is intended to be used for buffer estimation
      * If the file in linear PCM then it is equal to...
      * (nChannels * nSamplesPerSecond * nBitsPerSample) / 8
-     * @return The byte rate indicated in the fmt chunk
+     * @return The byte rate indicated in the fmt Chunk
      */
     public int getByteRate(){
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         while (chunkIterator.hasNext()){
-              tempChunk = (chunk)chunkIterator.next();
-              // Is this the fmt chunk?
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the fmt Chunk?
               if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
-                  // Yes we have found the fmt chunk.
+                  // Yes we have found the fmt Chunk.
                   ByteBuffer byteData = tempChunk.getBytes();
                   byteData.order(ByteOrder.LITTLE_ENDIAN);
                   byteData.position(16);
@@ -787,20 +791,20 @@ public class BWFProcessor extends Observable implements Runnable {
     }
     /**
      * Find the number of samples indicated in the file by calculation.
-     * This simply reads some number from the fmt chunk and carries out a calculation.
+     * This simply reads some number from the fmt Chunk and carries out a calculation.
      * @return Return the number of samples in the file.
      */
     public double getNoOfSamples() {
         // The number of samples in the file should be calculable from
-        // No of channels * Sample rate * data chunk size / Byte rate
+        // No of channels * Sample rate * data Chunk size / Byte rate
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         int intChannels, intSampleRate, intByteRate;
         while (chunkIterator.hasNext()){
-            tempChunk = (chunk)chunkIterator.next();
-            // Is this the fmt chunk?
+            tempChunk = (Chunk)chunkIterator.next();
+            // Is this the fmt Chunk?
             if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
-                // Yes we have found the fmt chunk.
+                // Yes we have found the fmt Chunk.
                 ByteBuffer byteData = tempChunk.getBytes();
                 byteData.order(ByteOrder.LITTLE_ENDIAN);
                 byteData.position(10);
@@ -819,19 +823,19 @@ public class BWFProcessor extends Observable implements Runnable {
         return 0;
     }
     /**
-     * Returns the number of audio channels which are indicated by the fmt chunk
+     * Returns the number of audio channels which are indicated by the fmt Chunk
      * For a stereo file this will be 2, mono will be 1 a polywav could have more than 2
      * @return The number of audio channels.
      */
     public int getNoOfChannels() {
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         int intChannels, intSampleRate, intByteRate;
         while (chunkIterator.hasNext()){
-            tempChunk = (chunk)chunkIterator.next();
-            // Is this the fmt chunk?
+            tempChunk = (Chunk)chunkIterator.next();
+            // Is this the fmt Chunk?
             if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
-                // Yes we have found the fmt chunk.
+                // Yes we have found the fmt Chunk.
                 ByteBuffer byteData = tempChunk.getBytes();
                 byteData.order(ByteOrder.LITTLE_ENDIAN);
                 byteData.position(10);
@@ -842,31 +846,31 @@ public class BWFProcessor extends Observable implements Runnable {
         return 0;
     }
     /**
-     * This can set the number of samples indicated in the fact chunk.
-     * Wave files do not always have a fact chunk, it's mandatory for MPEG files, and sometimes exists in 32bit float files.
-     * If the file did not have a fact chunk then one is created.
+     * This can set the number of samples indicated in the fact Chunk.
+     * Wave files do not always have a fact Chunk, it's mandatory for MPEG files, and sometimes exists in 32bit float files.
+     * If the file did not have a fact Chunk then one is created.
      * @param setNoOfSamples    Set the number of samples.
      * @return                  Return true is successful.
      */
     public boolean setFactSamples(int setNoOfSamples) {
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         while (chunkIterator.hasNext()){
-            tempChunk = (chunk)chunkIterator.next();
-            // Is this the fact chunk?
+            tempChunk = (Chunk)chunkIterator.next();
+            // Is this the fact Chunk?
             if ((tempChunk.getckID()).equalsIgnoreCase("fact") ){
                 ByteBuffer byteData = ByteBuffer.allocate(4);
                 byteData.order(ByteOrder.LITTLE_ENDIAN);
                 byteData.putInt(setNoOfSamples);
                 byteData.position(0);
-                if (tempChunk instanceof chunk) {
+                if (tempChunk instanceof Chunk) {
                     return tempChunk.setBytes(byteData, 0);
                 } else {
                     return false;
                 }
             }
         }
-        // If we get here the fact chunk was not found
+        // If we get here the fact Chunk was not found
         ByteBuffer tempData = ByteBuffer.allocate(12);
         tempData.order(ByteOrder.LITTLE_ENDIAN);
         tempData.position(0);
@@ -874,24 +878,24 @@ public class BWFProcessor extends Observable implements Runnable {
         tempData.putInt(4);
         tempData.putInt(setNoOfSamples);
         tempData.position(0);
-        startChunks.add(new chunk(tempData));
+        startChunks.add(new Chunk(tempData));
         return true;
     }
     /**
-     * Get the indicated duration in seconds from the fmt chunk.
+     * Get the indicated duration in seconds from the fmt Chunk.
      * This may not always be correct.
      * @return Return the indicated duration in seconds.
      */
     public double getDuration(){
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         short shortAudioFormat;
         int intByteRate;
         while (chunkIterator.hasNext()){
-            tempChunk = (chunk)chunkIterator.next();
-            // Is this the fmt chunk?
+            tempChunk = (Chunk)chunkIterator.next();
+            // Is this the fmt Chunk?
             if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
-                // Yes we have found the fmt chunk.
+                // Yes we have found the fmt Chunk.
                 ByteBuffer byteData = tempChunk.getBytes();
                 byteData.order(ByteOrder.LITTLE_ENDIAN);
                 byteData.position(8);
@@ -909,26 +913,26 @@ public class BWFProcessor extends Observable implements Runnable {
         return 0;
     }
     /**
-     * @return Return true if the file has a bext chunk.
+     * @return Return true if the file has a bext Chunk.
      */
     public boolean hasBextChunk() {
         return bHasBextChunk;
     }
     /**
-     * Get the title from the bext chunk.
-     * @return Return a string containing the title from the bext chunk.
+     * Get the title from the bext Chunk.
+     * @return Return a string containing the title from the bext Chunk.
      */
     public String getBextTitle() {
         if (!hasBextChunk()) {
             return "";
         }
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         while (chunkIterator.hasNext()){
-              tempChunk = (chunk)chunkIterator.next();
-              // Is this the bext chunk?
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the bext Chunk?
               if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
-                  // Yes we have found the bext chunk.
+                  // Yes we have found the bext Chunk.
                   ByteBuffer byteData = tempChunk.getBytes();
                   byteData.order(ByteOrder.LITTLE_ENDIAN);
                   byteData.position(8);
@@ -936,7 +940,7 @@ public class BWFProcessor extends Observable implements Runnable {
                   byte tempByte;
                   for (int i=0; i<256; i++) {
                        tempByte = byteData.get();
-                      if (tempByte > 0) {
+                      if (tempByte > 31 && tempByte != 0x7F) {
                           strTemp.append((char)tempByte);
                       }
                   }
@@ -946,17 +950,126 @@ public class BWFProcessor extends Observable implements Runnable {
         return "";
         
     }
+    
+/**
+     * Get the author from the bext Chunk.
+     * @return Return a string containing the author from the bext Chunk.
+     */
+    public String getBextAuthor() {
+        if (!hasBextChunk()) {
+            return "";
+        }
+        chunkIterator = startChunks.iterator();
+        Chunk tempChunk;
+        while (chunkIterator.hasNext()){
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the bext Chunk?
+              if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
+                  // Yes we have found the bext Chunk.
+                  ByteBuffer byteData = tempChunk.getBytes();
+                  byteData.order(ByteOrder.LITTLE_ENDIAN);
+                  byteData.position(264);
+                  StringBuilder strTemp = new StringBuilder(32);
+                  byte tempByte;
+                  for (int i=0; i<32; i++) {
+                       tempByte = byteData.get();
+                      if (tempByte > 31 && tempByte != 0x7F) {
+                          strTemp.append((char)tempByte);
+                      }
+                  }
+                  return strTemp.toString();
+            }
+        }
+        return "";
+        
+    } 
+    
     /**
-     * This will set the format tag in the fmt chunk.
+     * Get the ProgNo from the bext Chunk.
+     * @return Return a string containing the ProgNo from the bext Chunk.
+     */
+    public String getBextProgNo() {
+        if (!hasBextChunk()) {
+            return "";
+        }
+        chunkIterator = startChunks.iterator();
+        Chunk tempChunk;
+        while (chunkIterator.hasNext()){
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the bext Chunk?
+              if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
+                  // Yes we have found the bext Chunk.
+                  ByteBuffer byteData = tempChunk.getBytes();
+                  byteData.order(ByteOrder.LITTLE_ENDIAN);
+                  byteData.position(296);
+                  StringBuilder strTemp = new StringBuilder(32);
+                  byte tempByte;
+                  for (int i=0; i<32; i++) {
+                       tempByte = byteData.get();
+                      if (tempByte > 31 && tempByte != 0x7F) {
+                          strTemp.append((char)tempByte);
+                      }
+                  }
+                  return strTemp.toString();
+            }
+        }
+        return "";
+        
+    }  
+    
+    /**
+     * Get the ProgNo from the bext Chunk.
+     * @return Return a string containing the ProgNo from the bext Chunk.
+     */
+    public Date getBextRecordDate() {
+        if (!hasBextChunk()) {
+            return new Date(0);
+        }
+        chunkIterator = startChunks.iterator();
+        Chunk tempChunk;
+        while (chunkIterator.hasNext()){
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the bext Chunk?
+              if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
+                  // Yes we have found the bext Chunk.
+                  ByteBuffer byteData = tempChunk.getBytes();
+                  byteData.order(ByteOrder.LITTLE_ENDIAN);
+                  byteData.position(328);
+                  StringBuilder strTemp = new StringBuilder(18);
+                  byte tempByte;
+                  for (int i=0; i<18; i++) {
+                      tempByte = byteData.get();
+                      strTemp.append((char)tempByte);
+                  }
+                  String strDate =strTemp.toString();
+                  // Allowed separators are hyphen - underscore _ colon : space   and stop .
+                    strDate = strDate.replace('_', '-');
+                    strDate = strDate.replace(':', '-');
+                    strDate = strDate.replace(' ', '-');
+                    strDate = strDate.replace('.', '-');
+                    // The format should now be yyyy-mm-ddhh-mm-ss
+                    try {
+                        dRecordDate = fmtBwfDateFormat.parse(strDate);
+                    } catch (Exception e) {
+                        dRecordDate = new Date(0);
+                    }
+                  return dRecordDate;
+            }
+        }
+        return new Date(0);
+        
+    }    
+    /**
+     * This will set the format tag in the fmt Chunk.
      * @param setFormatTag This is a short contaning the new format tag.
      * @return         Return true if the title is written successfully.
      */    
     public boolean setFormatTag(short setFormatTag) {
-        chunk tempChunk = null;
+        Chunk tempChunk = null;
         chunkIterator = startChunks.iterator();
         while (chunkIterator.hasNext()){
-            tempChunk = (chunk)chunkIterator.next();
-            // Is this the fmt chunk?
+            tempChunk = (Chunk)chunkIterator.next();
+            // Is this the fmt Chunk?
             if ((tempChunk.getckID()).equalsIgnoreCase("fmt ") || (tempChunk.getckID()).equalsIgnoreCase(" fmt")){
                 break;
             }
@@ -965,7 +1078,7 @@ public class BWFProcessor extends Observable implements Runnable {
         byteData.order(ByteOrder.LITTLE_ENDIAN);
         byteData.putShort(setFormatTag);
         byteData.position(0);
-        if (tempChunk instanceof chunk) {
+        if (tempChunk instanceof Chunk) {
             return tempChunk.setBytes(byteData, 0);
         } else {
             return false;
@@ -973,14 +1086,14 @@ public class BWFProcessor extends Observable implements Runnable {
         
     }
     /**
-     * This will set the title in the bext chunk.
-     * If the file did not have a bext chunk then a dummy one is added and the title is written to it.
+     * This will set the title in the bext Chunk.
+     * If the file did not have a bext Chunk then a dummy one is added and the title is written to it.
      * If the given string is too long it will be truncated.* 
      * @param setTitle This is a string containing the title, it can't be more than 256 characters.
      * @return         Return true if the title is written successfully.
      */
     public boolean setBextTitle(String setTitle) {
-        chunk tempChunk = null;
+        Chunk tempChunk = null;
         if (!hasBextChunk()) {
             tempChunk = createBextChunk();
             startChunks.add(tempChunk);
@@ -988,7 +1101,7 @@ public class BWFProcessor extends Observable implements Runnable {
         } else {
             chunkIterator = startChunks.iterator();
             while (chunkIterator.hasNext()){
-                tempChunk = (chunk)chunkIterator.next();
+                tempChunk = (Chunk)chunkIterator.next();
                 if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
                     break;
                 }
@@ -1004,7 +1117,7 @@ public class BWFProcessor extends Observable implements Runnable {
             byteData.put(nullByte);
         }
         byteData.position(0);
-        if (tempChunk instanceof chunk) {
+        if (tempChunk instanceof Chunk) {
             return tempChunk.setBytes(byteData, 0);
         } else {
             return false;
@@ -1019,12 +1132,12 @@ public class BWFProcessor extends Observable implements Runnable {
             return strOriginatorReference;
         }
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         while (chunkIterator.hasNext()){
-              tempChunk = (chunk)chunkIterator.next();
-              // Is this the bext chunk?
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the bext Chunk?
               if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
-                  // Yes we have found the bext chunk.
+                  // Yes we have found the bext Chunk.
                   ByteBuffer byteData = tempChunk.getBytes();
                   byteData.order(ByteOrder.LITTLE_ENDIAN);
                   byteData.position(296);
@@ -1044,14 +1157,14 @@ public class BWFProcessor extends Observable implements Runnable {
         
     }
     /**
-     * This will set the originator reference in the bext chunk.
-     * If the file did not have a bext chunk then a dummy one is added and the originator reference is written to it.
+     * This will set the originator reference in the bext Chunk.
+     * If the file did not have a bext Chunk then a dummy one is added and the originator reference is written to it.
      * @param setOriginatorReference    This is a 32 character string containing an originator reference.
      * If the given string is too long it will be truncated.
      * @return Returns true if the reference is written.
      */
     public boolean setBextOriginatorRef(String setOriginatorReference) {
-        chunk tempChunk = null;
+        Chunk tempChunk = null;
         if (!hasBextChunk()) {
             tempChunk = createBextChunk();
             startChunks.add(tempChunk);
@@ -1059,7 +1172,7 @@ public class BWFProcessor extends Observable implements Runnable {
         } else {
             chunkIterator = startChunks.iterator();
             while (chunkIterator.hasNext()){
-                tempChunk = (chunk)chunkIterator.next();
+                tempChunk = (Chunk)chunkIterator.next();
                 if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
                     break;
                 }
@@ -1076,14 +1189,14 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         byteData.position(0);
         strOriginatorReference = setOriginatorReference;
-        if (tempChunk instanceof chunk) {
+        if (tempChunk instanceof Chunk) {
             return tempChunk.setBytes(byteData, 288);
         } else {
             return false;
         }
     }
     /**
-     * This finds the bext chunk in the file and returns the time code offset for the start of the recording.
+     * This finds the bext Chunk in the file and returns the time code offset for the start of the recording.
      * @return Return the timecode offset in samples.
      */
     public long getBextTimeCodeOffset() {
@@ -1091,12 +1204,12 @@ public class BWFProcessor extends Observable implements Runnable {
             return 0;
         }
         chunkIterator = startChunks.iterator();
-        chunk tempChunk;
+        Chunk tempChunk;
         while (chunkIterator.hasNext()){
-              tempChunk = (chunk)chunkIterator.next();
-              // Is this the bext chunk?
+              tempChunk = (Chunk)chunkIterator.next();
+              // Is this the bext Chunk?
               if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
-                  // Yes we have found the bext chunk.
+                  // Yes we have found the bext Chunk.
                   ByteBuffer byteData = tempChunk.getBytes();
                   byteData.order(ByteOrder.LITTLE_ENDIAN);
                   byteData.position(346);
@@ -1107,11 +1220,11 @@ public class BWFProcessor extends Observable implements Runnable {
 
     }
     /**
-     * Create an empty bext chunk with dummy values.
-     * @return Return a bext chunk.
+     * Create an empty bext Chunk with dummy values.
+     * @return Return a bext Chunk.
      */
-    public chunk createBextChunk() {
-        chunk tempChunk = null;
+    public Chunk createBextChunk() {
+        Chunk tempChunk = null;
         ByteBuffer byteData = ByteBuffer.allocate(1032);
         byteData.order(ByteOrder.LITTLE_ENDIAN);
         byteData.put("bext".getBytes());
@@ -1121,7 +1234,7 @@ public class BWFProcessor extends Observable implements Runnable {
         byteData.putLong(0);
         byteData.putInt(0);
         byteData.position(0);
-        tempChunk = new chunk(byteData);
+        tempChunk = new Chunk(byteData);
         return tempChunk;
     }
 }
