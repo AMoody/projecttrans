@@ -1,23 +1,23 @@
 package jprojecttranslator;
 import java.nio.*;
 /**
- * This represents a chunk which would be part of a RIFF file.
+ * This represents a Chunk which would be part of a RIFF file.
  * The constructor takes a ByteBuffer object and starts at the beginning
- * The first four bytes are the ascii code for this chunk.
+ * The first four bytes are the ascii code for this Chunk.
  * The next four bytes are a little endian representation of the total length of the data
- * The next bytes are the actual data, the format depends on the type of chunk.
+ * The next bytes are the actual data, the format depends on the type of Chunk.
  * Created on 09 September 2005 
  * @author  moodya71
  */
-public class chunk {
+public class Chunk {
     private String ckID;
     private int ckSIZE;
     private int originalckSIZE;
     private ByteBuffer data;
     private int minSize = 0;
     
-    /** Creates a new instance of chunk */
-    public chunk(ByteBuffer inputData) {
+    /** Creates a new instance of Chunk */
+    public Chunk(ByteBuffer inputData) {
         // The first four bytes are the ascii character code, not unicode
         StringBuilder strTemp = new StringBuilder(4);
         for (int i=0; i<4; i++) {
@@ -32,11 +32,11 @@ public class chunk {
         while ((inputData.hasRemaining() && data.hasRemaining())) {
             data.put(inputData.get());
         }
-        // System.out.println("chunk object created with ckID of  " + ckID + " and size is " + ckSIZE);
+        // System.out.println("Chunk object created with ckID of  " + ckID + " and size is " + ckSIZE);
     }
     
-    /** Alternate constructor allows the creation of a minimum size for the chunk*/
-    public chunk(ByteBuffer inputData, int setMinSize){
+    /** Alternate constructor allows the creation of a minimum size for the Chunk*/
+    public Chunk(ByteBuffer inputData, int setMinSize){
         minSize = setMinSize;
         // The first four bytes are the ascii character code, not unicode
         StringBuilder strTemp = new StringBuilder(4);
@@ -56,12 +56,12 @@ public class chunk {
         while ((inputData.hasRemaining() && data.hasRemaining())) {
             data.put(inputData.get());
         }
-        // Now fill the remainder of the chunk with nulls
+        // Now fill the remainder of the Chunk with nulls
         byte nullByte = 0;
         while (data.hasRemaining()) {
             data.put(nullByte);
         }
-        // System.out.println("chunk object created with ckID of  " + ckID + " and size is " + ckSIZE);        
+        // System.out.println("Chunk object created with ckID of  " + ckID + " and size is " + ckSIZE);        
         
     }
     
