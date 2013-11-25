@@ -628,6 +628,8 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         int intCrossfadeOut = Integer.parseInt(xmlCrossfade.attributeValue("out"));
         int intCrossfadeIn = Integer.parseInt(xmlCrossfade.attributeValue("in"));
         long lCrossfade = Long.parseLong(xmlCrossfade.attributeValue("length"));
+        long lInCrossFadePosition = Long.parseLong(xmlCrossfade.attributeValue("position"));
+        long lOutCrossFadePosition = lInCrossFadePosition + lCrossfade;
         // Get the fade in values
         Element xmlFadeIn = xmlCrossfade.element("FadeIn");
         fade fadeIn = new fade();
@@ -644,14 +646,16 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         try {
             if (strInFade.length() > 0){
-                strSQL = "UPDATE PUBLIC.EVENT_LIST SET strInFade = \'" + strInFade + "\', intInFade = " + lCrossfade + " WHERE intRegionIndex = " + intCrossfadeIn + ";";
+                strSQL = "UPDATE PUBLIC.EVENT_LIST SET strInFade = \'" + strInFade + "\', intInFade = " + lCrossfade + " WHERE intRegionIndex = " + intCrossfadeIn + ""
+                        + " AND intDestIn = " + lInCrossFadePosition + ";";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                 }
             }
             if (strOutFade.length() > 0){
-                strSQL = "UPDATE PUBLIC.EVENT_LIST SET strOutFade = \'" + strOutFade + "\', intOutFade = " + lCrossfade + " WHERE intRegionIndex = " + intCrossfadeOut + ";";
+                strSQL = "UPDATE PUBLIC.EVENT_LIST SET strOutFade = \'" + strOutFade + "\', intOutFade = " + lCrossfade + " WHERE intRegionIndex = " + intCrossfadeOut + ""
+                        + " AND intDestOut = " + lOutCrossFadePosition + ";";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
