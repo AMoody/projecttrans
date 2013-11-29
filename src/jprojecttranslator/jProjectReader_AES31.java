@@ -38,6 +38,7 @@ public class jProjectReader_AES31 extends jProjectReader {
      * This returns a FileFilter which shows the files this class can read
      * @return FileFilter
      */
+    @Override
     public javax.swing.filechooser.FileFilter getFileFilter() {
         javax.swing.filechooser.FileFilter filter = new FileNameExtensionFilter("AES31 (.adl)", "adl");
         return filter;
@@ -46,6 +47,7 @@ public class jProjectReader_AES31 extends jProjectReader {
      * This loads up an AES31 project in to the database.
      * @return      True if the project was loaded.
      */
+    @Override
     protected boolean processProject() {
         intSoundFilesLoaded = 0;
         if (!loadXMLData(fSourceFile)) {
@@ -112,7 +114,15 @@ public class jProjectReader_AES31 extends jProjectReader {
         return true;
         
     }
+    /**
+     * 
+     * @param setVersion
+     * @return 
+     */
     protected boolean parseAES31Version(Element setVersion) {
+        if (setVersion == null || !setVersion.hasContent()) {
+            return false;
+        }
         String strLine;
         strLine = setVersion.getText();
         String strADLID = "";
@@ -185,7 +195,15 @@ public class jProjectReader_AES31 extends jProjectReader {
 //        }
         return true;
     }
+    /**
+     * 
+     * @param setProject An xml element containing the project text to be parsed
+     * @return True if the element is parsed successfully
+     */
     protected boolean parseAES31Project(Element setProject) {
+        if (setProject == null || !setProject.hasContent()) {
+            return false;
+        }
         String strLine = setProject.getText();
         System.out.println("Project string is  " + strLine);
         String strTitle = "";
@@ -256,7 +274,15 @@ public class jProjectReader_AES31 extends jProjectReader {
         }
         return true;
     }
+    /**
+     * 
+     * @param setSequence, an xml element containing the sequence to be parsed
+     * @return True if the element is parsed successfully
+     */
     protected boolean parseAES31Sequence(Element setSequence) {
+        if (setSequence == null || !setSequence.hasContent()) {
+            return false;
+        }
         String strLine = setSequence.getText();
         Matcher mMatcher;
         
@@ -300,10 +326,13 @@ public class jProjectReader_AES31 extends jProjectReader {
     }
     /**
      * This will parse the SOURCE_INDEX section of an adl file in to the database. It contains information about the sound files which are used.
-     * @param setSource A string containing the (Index) information.
+     * @param setSource An Element containing the (Index) information.
      * @return true if the string was parsed successfully.
      */
     protected boolean parseAES31Source_Index(Element setSource) {
+        if (setSource == null || !setSource.hasContent()) {
+            return false;
+        }
         String strLine = setSource.getText();
         String strName, strURI, strFileName, strUMID;
         long lLength, lFileTCOffset;
@@ -379,10 +408,13 @@ public class jProjectReader_AES31 extends jProjectReader {
     }
     /**
      * This will take a series of  AES31 events in a string and split them up to be processed.
-     * @param setEvent A string containing a series of AES31 events.
+     * @param setEvent An Element containing a series of AES31 events.
      * @return true if the parsing was successful.
      */
     protected boolean parseAES31Event_List(Element setEvent) {
+        if (setEvent == null || !setEvent.hasContent()) {
+            return false;
+        }
         String strLine = setEvent.getText();
         String[] arrLines = strLine.split("(?=\\s*\\(Entry\\)\\s*\\d\\d\\d\\d)");
         for(int i =0; i < arrLines.length ; i++) {
@@ -511,6 +543,9 @@ public class jProjectReader_AES31 extends jProjectReader {
         return true;
     }
     protected boolean parseAES31Fader_List(Element xmlFades) {
+        if (xmlFades == null || !xmlFades.hasContent()) {
+            return false;
+        }
         String strFades = xmlFades.getText();
         Matcher mMatcher;
         Pattern pPattern;
