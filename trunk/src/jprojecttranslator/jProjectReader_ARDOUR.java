@@ -239,14 +239,28 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         // Need to look at the sound files now to get further information
         loadSoundFiles(st, fAudioFolder);
-        // DiskStreams are tracks in the edl, they can have one or more tracks and this corresponds to the ADL track map, e.g. 1~2
+        /** DiskStreams are tracks in the edl, they can have one or more tracks and this corresponds
+         * to the ADL track map, e.g. 1~2
+         * However they do not exist in Ardour 3, the same information is now stored in the Route element
+         */ 
         Element xmlDiskStreams = xmlRoot.element("DiskStreams");
         Element xmlDiskStream;
-        for (Iterator i = xmlDiskStreams.elementIterator("AudioDiskstream");i.hasNext();) {
-            xmlDiskStream = (Element)i.next();
-            parseDiskStreamData(xmlDiskStream, st);
-
+        Element xmlRoutes;
+        Element xmlRoute;
+        if (xmlDiskStreams != null) {
+            for (Iterator i = xmlDiskStreams.elementIterator("AudioDiskstream");i.hasNext();) {
+                xmlDiskStream = (Element)i.next();
+                parseDiskStreamData(xmlDiskStream, st);
+            }
+        } else {
+            // DiskStreams element was not found, try to use the Routes element instead.
+            xmlRoutes = xmlRoot.element("Routes");
+            for (Iterator i = xmlRoutes.elementIterator("Route");i.hasNext();) {
+                xmlRoute = (Element)i.next();
+                parseDiskStreamDataFromRoute(xmlRoute, st);
+            }
         }
+        
         // Playlists are the tracks in the EDL and these contain regions
         Element xmlPlaylists = xmlRoot.element("Playlists");
         Element xmlPlaylist;
@@ -264,8 +278,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             
         } while (intPrunedTracks > 0 && intCounter < 5000);
         // Routes exist within the mixer and might contain gain automation data
-        Element xmlRoutes = xmlRoot.element("Routes");
-        Element xmlRoute;
+        xmlRoutes = xmlRoot.element("Routes");
         boolean bMergeReqd = false;
         for (Iterator i = xmlRoutes.elementIterator("Route");i.hasNext();) {
             xmlRoute = (Element)i.next();
@@ -452,6 +465,48 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             System.out.println("Error on SQL " + strSQL + e.toString());
         }
     }
+    // parseDiskStreamDataFromRoute(xmlRoute, st);
+    /**
+     * This is used to parse disktream data from the route element.
+     * In Ardour 2 there was a diskstreamdata element but in Ardour 3 this data 
+     * has been merged in to the Route element.
+     * @param xmlRoute  The is an xml element containing the route
+     * @param st        This allows access to the database
+     * @return          Return -1 is something was wrong, 0 if everything is OK
+     */
+    protected int parseDiskStreamDataFromRoute(Element xmlRoute, Statement st) {
+        int intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("id"));
+        String strName = xmlRoute.attributeValue("name");
+        int intChannelOffset = 1;
+        int intChannels = 1;
+        if (xmlRoute.element("Diskstream") != null) {
+            intChannels = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("channels"));
+        } else {
+            return -1;
+        }
+        try {
+            strName = URLEncoder.encode(strName, "UTF-8");
+            strSQL = "SELECT SUM(intChannels) FROM PUBLIC.TRACKS;";
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();
+            if (!(rs.wasNull()) &&  rs.getInt(1) > 0) {
+                intChannelOffset = rs.getInt(1) + 1;
+            } 
+            strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, strName, intChannels, intChannelOffset) VALUES (" +
+                intAudioDiskstreamIndex + ", \'" + strName + "\', " + intChannels + ", " + intChannelOffset + " );";
+            int i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+        } catch(java.io.UnsupportedEncodingException e) {
+            System.out.println("Exception " + e.toString());
+            return -1;
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+            return -1;
+        }        
+        return 0;
+    }
     /**
      * 
      * @param xmlRoute  The is an xml element containing the route
@@ -588,7 +643,13 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * @param st              This allows the database to be updated.
      */
     protected void parsePlaylistData(Element xmlPlaylist, Statement st) {
-        int intPlaylistIndex = Integer.parseInt(xmlPlaylist.attributeValue("orig_diskstream_id"));
+        int intPlaylistIndex = 0;
+        if (xmlPlaylist.attributeValue("orig_diskstream_id") != null) {
+            intPlaylistIndex = Integer.parseInt(xmlPlaylist.attributeValue("orig_diskstream_id"));
+        } else {
+            intPlaylistIndex = Integer.parseInt(xmlPlaylist.attributeValue("orig-track-id"));
+        }
+        
         int intChannelOffset = 1;
         strSQL = "SELECT intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intPlaylistIndex + ";";
         try {
@@ -676,20 +737,35 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * @param xmlRegion     This is an xml Element containing the region data
      * @param intMapOffset  Each audio track is offset by this number in the database
      * @param st            This allows the database to be updated.
+     * @param intTrackIndex 
      */
     protected void parseRegionData(Element xmlRegion, int intMapOffset, Statement st, int intTrackIndex) {
         /** Each region can consist of one or more channels. 
          */
         int intRegionIndex = Integer.parseInt(xmlRegion.attributeValue("id"));
-        int intLayer = Integer.parseInt(xmlRegion.attributeValue("layer"));
-        String strFlags = xmlRegion.attributeValue("flags");
-        boolean bOpaque = (strFlags.indexOf("Opaque") > -1);
-        String strOpaque;
-        if (bOpaque) {
-            strOpaque = "Y";
+        int intLayer = 0;
+        if (xmlRegion.attributeValue("layer") != null) {
+            intLayer = Integer.parseInt(xmlRegion.attributeValue("layer"));
         } else {
-            strOpaque = "N";
+            intLayer = Integer.parseInt(xmlRegion.attributeValue("layering-index"));
         }
+        String strFlags = xmlRegion.attributeValue("flags");
+        String strOpaque;
+        if (strFlags != null) {
+            boolean bOpaque = (strFlags.indexOf("Opaque") > -1);
+            if (bOpaque) {
+                strOpaque = "Y";
+            } else {
+                strOpaque = "N";
+            }
+        } else {
+            if (xmlRegion.attributeValue("opaque").indexOf("1") > -1) {
+                strOpaque = "Y";
+            } else {
+                strOpaque = "N";
+            }
+        }
+        
         String strRemark = xmlRegion.attributeValue("name");
         try {
             strRemark = URLEncoder.encode(strRemark, "UTF-8");
