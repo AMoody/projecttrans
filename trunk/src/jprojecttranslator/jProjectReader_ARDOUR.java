@@ -475,6 +475,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * @return          Return -1 is something was wrong, 0 if everything is OK
      */
     protected int parseDiskStreamDataFromRoute(Element xmlRoute, Statement st) {
+        String strType = "";
+        strType = xmlRoute.attributeValue("default-type");
+        if (strType != null && strType.indexOf("midi") > -1) {
+            return -1;
+        }
         int intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("id"));
         String strName = xmlRoute.attributeValue("name");
         int intChannelOffset = 1;
@@ -518,10 +523,18 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         // This indicates if the automation data can be imported directly or if it 
         // needs to be merged with existing data.
         int intMergeReqd = 0;
-        if (xmlRoute.attributeValue("diskstream-id") == null) {
-            return -1;
+        int intAudioDiskstreamIndex = 0;
+        if (xmlRoute.attributeValue("diskstream-id") != null) {
+            intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("diskstream-id"));
+            
+        } else {
+            if (xmlRoute.attributeValue("id") != null) {
+                intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("id"));
+            } else {
+                return -1;
+            }
         }
-        int intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("diskstream-id"));
+        
         // We're only interested in gain automation data at the moment
         if (xmlRoute.element("IO") != null && xmlRoute.element("IO").element("Automation") != null
                 && xmlRoute.element("IO").element("Automation").element("AutomationList") != null
@@ -556,6 +569,39 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             
             
         }
+        if (xmlRoute.element("Processor") != null && xmlRoute.element("Processor").element("Automation") != null
+                && xmlRoute.element("Processor").element("Automation").element("AutomationList") != null
+                && xmlRoute.element("Processor").element("Automation").element("AutomationList").element("events") != null) {
+            System.out.println("Found automation data on disk stream ID  " + intAudioDiskstreamIndex);
+            // Found automation data for this track, need to check that there is not already region gain data
+            strSQL = "SELECT COUNT(*) FROM PUBLIC.FADER_LIST,PUBLIC.TRACKS WHERE "
+                    + "PUBLIC.FADER_LIST.intTrack = PUBLIC.TRACKS.intChannelOffset AND "
+                    + "PUBLIC.TRACKS.intIndex = " + intAudioDiskstreamIndex + ";";
+            try {
+                ResultSet rs = st.executeQuery(strSQL);
+                rs.next();
+                if (!(rs.wasNull()) &&  rs.getInt(1) == 0) {
+                    // This data can be imported straight in to the FADER_LIST table
+                    importEventData(xmlRoute.element("Processor").element("Automation").element("AutomationList").element("events")
+                            , st, "PUBLIC.FADER_LIST", intAudioDiskstreamIndex);
+                    
+                } else {
+
+                    // FADER_LIST_T will have the track automation data
+                    importEventData(xmlRoute.element("Processor").element("Automation").element("AutomationList").element("events")
+                            , st, "PUBLIC.FADER_LIST_T", intAudioDiskstreamIndex);
+                    
+                    intMergeReqd = 1;
+                    System.out.println("Automation data on disk stream ID  " + intAudioDiskstreamIndex + " will need to be merged");
+                }
+            } catch (java.sql.SQLException e) {
+                System.out.println("Error on SQL " + strSQL + e.toString());
+            }
+            return intMergeReqd;
+            
+            
+            
+        }        
         return -1;
         
     }
@@ -643,6 +689,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * @param st              This allows the database to be updated.
      */
     protected void parsePlaylistData(Element xmlPlaylist, Statement st) {
+        String strType = "";
+        strType = xmlPlaylist.attributeValue("type");
+        if (strType != null && strType.indexOf("midi") > -1) {
+            return;
+        }
         int intPlaylistIndex = 0;
         if (xmlPlaylist.attributeValue("orig_diskstream_id") != null) {
             intPlaylistIndex = Integer.parseInt(xmlPlaylist.attributeValue("orig_diskstream_id"));
@@ -742,6 +793,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     protected void parseRegionData(Element xmlRegion, int intMapOffset, Statement st, int intTrackIndex) {
         /** Each region can consist of one or more channels. 
          */
+        String strType = "";
+        strType = xmlRegion.attributeValue("type");
+        if (strType != null && strType.indexOf("midi") > -1) {
+            return;
+        }
         int intRegionIndex = Integer.parseInt(xmlRegion.attributeValue("id"));
         int intLayer = 0;
         if (xmlRegion.attributeValue("layer") != null) {
@@ -776,7 +832,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         long lDestIn = (Long.parseLong(xmlRegion.attributeValue("position")));
         long lDestOut = (Long.parseLong(xmlRegion.attributeValue("length"))) + lDestIn;
         long lSourceIn = (Long.parseLong(xmlRegion.attributeValue("start")));
-        String strType = "Cut";
+        strType = "Cut";
         String strRef = "I";
         String strSourceChannel = "1";
         int intChannelCount = Integer.parseInt(xmlRegion.attributeValue("channels"));
@@ -871,6 +927,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * @param st            This allows the database to be updated.
      */
     protected void parseSourceData(Element xmlSource, Statement st) {
+        String strType = "";
+        strType = xmlSource.attributeValue("type");
+        if (strType != null && strType.indexOf("midi") > -1) {
+            return;
+        }
         String strName = xmlSource.attributeValue("name");
         String strFileName = strName;
         String strIndex = xmlSource.attributeValue("id");
@@ -1021,8 +1082,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         public String getInfoText() {
         return "<b>Ardour</b><br>"
                 + "This importer can read .ardour files which contain the EDL, it should then be able to find the associated audio. "
-                + "The default audio file format is 32 bit float which is not always supported by other audio editors so you "
+                + "The default audio file format in Ardour is 32 bit float which is not always supported by other audio editors so you "
                 + "should consider changing this in your ardour project. "
-                + "Regions lying under other opaque regions are split into independent event list entries in the AES31 project.<br>";
+                + "Regions lying under other opaque regions are split into independent event list entries in the AES31 project.<br>"
+                + "Both Ardour 2 and Ardour 3 file formats are supported. Midi files, tracks and regions are ignored because they are not supported by AES31.<br>";
     }
 }
