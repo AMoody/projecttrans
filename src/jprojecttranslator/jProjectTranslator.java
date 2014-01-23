@@ -605,7 +605,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         dlgLicence.setText("<html><h2>Project Translator</h2><br>"
                 + "A program to translate audio editing projects from "
                 + "one format to another. "
-                + "<br>Copyright © 2011-2013  Arthur Moody"
+                + "<br>Copyright © 2011-2014  Arthur Moody"
                 + "<br>Source code is available from here, https://sourceforge.net/projects/projecttrans"
                 + "<br><br>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by "
                 + "the Free Software Foundation, either version 3 of the License, or (at your option) any later version."
