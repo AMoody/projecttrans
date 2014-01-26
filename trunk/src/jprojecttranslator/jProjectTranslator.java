@@ -75,6 +75,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     final static ResourceBundle rbProject = ResourceBundle.getBundle("jprojecttranslator.version"); 
     protected static String strBuild;
     protected static final String strVersion = "0.1";
+    public static java.text.NumberFormat nf = java.text.NumberFormat.getInstance();
+    
     /**
      * Creates new form jProjectTranslator
      */
@@ -689,7 +691,11 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
          */
         int intHTTPPort = usersIniFile.ReadInteger("General","intHTTPPort",0);
         intPreferredSampleRate = usersIniFile.ReadInteger("General","SampleRate",48000);
-        dPreferredFrameRate = Double.parseDouble(usersIniFile.ReadString("General","FrameRate","25"));
+        try {
+            dPreferredFrameRate = nf.parse(usersIniFile.ReadString("General","FrameRate","25")).doubleValue();
+        } catch (java.text.ParseException e) {
+            dPreferredFrameRate = 25;
+        }
         intPreferredXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",960);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         strLastFileOpenFilter = usersIniFile.ReadString("General","LastFileOpenFilter","");
