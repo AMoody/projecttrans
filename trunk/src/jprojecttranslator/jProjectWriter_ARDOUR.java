@@ -11,6 +11,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.sql.ResultSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.dom4j.Element;
@@ -773,7 +774,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
      */
     protected Element getStreamPanner(float fDefaultValue) {
         Element xmlStreamPanner = DocumentHelper.createElement("StreamPanner");
-        String strDefaultValue = String.format("%.1f", fDefaultValue);
+        String strDefaultValue = String.format(Locale.UK,"%.1f", fDefaultValue);
         xmlStreamPanner.addAttribute("x",strDefaultValue).addAttribute("type","Equal Power Stereo").addAttribute("muted","no");
         xmlStreamPanner.addElement("Automation").addElement("AutomationList").addAttribute("id","" + intIdCounter++)
                 .addAttribute("default",strDefaultValue).addAttribute("min_yval","0").addAttribute("max_yval","1").addAttribute("max_xval","0").addAttribute("state","Off").addAttribute("style","Absolute");
