@@ -205,7 +205,7 @@ public class jProjectReader_AES31 extends jProjectReader {
             return false;
         }
         String strLine = setProject.getText();
-        System.out.println("Project string is  " + strLine);
+//        System.out.println("Project string is  " + strLine);
         String strTitle = "";
         String strNotes = "";
         String strCreated = "";

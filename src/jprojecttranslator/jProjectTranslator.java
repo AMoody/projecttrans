@@ -63,7 +63,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     /* This stores the last used folder. */
     private static File fPath;
     public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
-    public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss");
+    // public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss");
+    public static DateTimeFormatter fmtDisplay = DateTimeFormat.shortDateTime();
     public static DateTimeFormatter fmtHHMMSS = DateTimeFormat.forPattern("HHmmss");
     // This sets the number of messages displayed
     private int intMessageQueueLength = 50;
@@ -584,7 +585,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
     private void menuPreferences(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuPreferences
         jPreferences dlgPref = new jPreferences(this,true);
-        dlgPref.setDropDowns(Integer.toString(intPreferredSampleRate) , String.format("%.2f", dPreferredFrameRate), intPreferredXfadeLength);
+        dlgPref.setDropDowns(Integer.toString(intPreferredSampleRate) , String.format(Locale.UK,"%.2f", dPreferredFrameRate), intPreferredXfadeLength);
         dlgPref.setLocationRelativeTo(null);
         dlgPref.setVisible(true);
         
@@ -691,11 +692,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
          */
         int intHTTPPort = usersIniFile.ReadInteger("General","intHTTPPort",0);
         intPreferredSampleRate = usersIniFile.ReadInteger("General","SampleRate",48000);
-        try {
-            dPreferredFrameRate = nf.parse(usersIniFile.ReadString("General","FrameRate","25")).doubleValue();
-        } catch (java.text.ParseException e) {
-            dPreferredFrameRate = 25;
-        }
+        String strTempPreferredFrameRate = usersIniFile.ReadString("General","FrameRate","25");
+        strTempPreferredFrameRate = strTempPreferredFrameRate.replaceAll(",",".");
+        dPreferredFrameRate = Double.parseDouble(strTempPreferredFrameRate);
         intPreferredXfadeLength = usersIniFile.ReadInteger("General","XfadeLength",960);
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         strLastFileOpenFilter = usersIniFile.ReadString("General","LastFileOpenFilter","");
@@ -850,7 +849,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         dSeconds = dSeconds - (lHours*60*60);
         long lMinutes = (long)dSeconds/(60);    
         dSeconds = dSeconds - (lMinutes*60);
-        return String.format("%02d", lHours) + ":" + String.format("%02d", lMinutes) + ":" + String.format("%1$05.2f", dSeconds);
+        return String.format("%02d", lHours) + ":" + String.format("%02d", lMinutes) + ":" + String.format(Locale.UK,"%1$05.2f", dSeconds);
         
     } 
     public static String humanReadableByteCount(long bytes, boolean si) {

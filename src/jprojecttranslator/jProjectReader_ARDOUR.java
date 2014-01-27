@@ -378,7 +378,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                     fY1 = fY1 + fY0 + ((fX1-fX0) * (fY2-fY0) / (fX2-fX0));
                 }
                 // Update the value in FADER_LIST table
-                strSQL = "UPDATE FADER_LIST SET strLevel = " + String.format("%.2f", fY1) + " WHERE intTrack = " + intCurrentTrack + " AND "
+                strSQL = "UPDATE FADER_LIST SET strLevel = " + String.format(Locale.UK,"%.2f", fY1) + " WHERE intTrack = " + intCurrentTrack + " AND "
                         + "intTime = " + fX1 + ";";
                 j = st.executeUpdate(strSQL);
                 if (j == -1) {
@@ -451,7 +451,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 }
                 // Update the value in FADER_LIST table
                 strSQL = "INSERT INTO FADER_LIST (intTrack, intTime, strLevel) VALUES (" +
-                    intCurrentTrack + ", " + fX1 + ",\'" + String.format("%.2f", fY1) + "\') ;";
+                    intCurrentTrack + ", " + fX1 + ",\'" + String.format(Locale.UK,"%.2f", fY1) + "\') ;";
                 j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -635,7 +635,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 while(itr.hasNext()) {
                     fTemp = (float[])(itr.next());
                     strSQL = "INSERT INTO " + strTable + " (intTrack, intTime, strLevel) VALUES (" +
-                    (i + intMapOffset - 1) + ", " + (fTemp[0] ) + ",\'" + String.format("%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
+                    (i + intMapOffset - 1) + ", " + (fTemp[0] ) + ",\'" + String.format(Locale.UK,"%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
                         j = st.executeUpdate(strSQL);
                         if (j == -1) {
                             System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -904,7 +904,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                     while(itr.hasNext()) {
                         fTemp = (float[])(itr.next());
                         strSQL = "INSERT INTO PUBLIC.FADER_LIST (intTrack, intTime, strLevel) VALUES (" +
-                    (i + intMapOffset - 1) + ", " + (fTemp[0] + lDestIn) + ",\'" + String.format("%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
+                    (i + intMapOffset - 1) + ", " + (fTemp[0] + lDestIn) + ",\'" + String.format(Locale.UK,"%.2f", 20*Math.log10(fTemp[1])) + "\') ;";
                         j = st.executeUpdate(strSQL);
                         if (j == -1) {
                             System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());

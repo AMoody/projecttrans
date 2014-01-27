@@ -108,7 +108,7 @@ public class fade {
                 return false;
             }
             dLevel = 20*Math.log10(dLevel);
-            strLevel = String.format("%.2f", dLevel);
+            strLevel = String.format(Locale.UK,"%.2f", dLevel);
             strFade = strFade + strLevel + "  ";
             
         }
@@ -205,7 +205,7 @@ public class fade {
                 return false;
             }
             dLevel = 20*Math.log10(dLevel);
-            strLevel = String.format("%.2f", dLevel);
+            strLevel = String.format(Locale.UK,"%.2f", dLevel);
             strFade = strFade + strLevel + "  ";
             
         }
