@@ -110,14 +110,14 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         * Next step is to create an ardour file and write the output.
         */
         if (writeARDOURFile(fDestFile, st)) {
-            oProjectTranslator.writeStringToPanel("Ardour project file written.");
+            oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.ARDOURFileWritten"));
         } else {
-            oProjectTranslator.writeStringToPanel("Failed to write Ardour project file.");
+            oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.ARDOURFileFailed"));
         }
         if (writeAudioFiles(fAudioFolder)) {
-            oProjectTranslator.writeStringToPanel("Audio files have been written, finished.");
+            oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.AudioFinished"));
         } else {
-            oProjectTranslator.writeStringToPanel("An error occurred while writing audio files.");
+            oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.AudioFileWriteFail"));
         }
         System.out.println("Ardour writer thread finished");
         return true;
@@ -590,7 +590,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                     continue;
                  }
                  System.out.println("Starting audio file write on dest file " + strDestFileName);
-                 oProjectTranslator.writeStringToPanel("Writing audio file " + strDestFileName);
+                 oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.WritingAudioFile") + strDestFileName);
         
                  tempBWFProcessor.addObserver(this);
                  tempBWFProcessor.writeFile(fDestFile);

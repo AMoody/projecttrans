@@ -1,32 +1,25 @@
 package jprojecttranslator;
-import java.io.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.io.*;
-import java.util.*;
-import java.nio.*;
-import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import org.dom4j.Document;
-import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
-import org.dom4j.io.OutputFormat;
-import org.dom4j.io.XMLWriter;
-import org.dom4j.io.SAXReader;
-import org.dom4j.DocumentException;
-import java.net.URLEncoder;
+import java.io.File;
+import java.io.IOException;
 import java.net.URLDecoder;
-import java.nio.charset.CodingErrorAction;
-import org.joda.time.*;
-import org.joda.time.format.*;
-import java.lang.Math.*;
+import java.net.URLEncoder;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Observable;
+import java.util.Observer;
+import java.util.Random;
+import java.util.ResourceBundle;
 import javax.swing.JOptionPane;
 import javax.swing.table.AbstractTableModel;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 /**
  * Project Translator is used to convert audio projects from various formats to AES31 (adl) format.
  * The source file is read in to a database which closely matches the structure of an AES31 adl file.
@@ -62,20 +55,22 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 //    public static double dPreferredFrameRate = 29.97;
     /* This stores the last used folder. */
     private static File fPath;
-    public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+    public static DateTimeFormatter fmtSQL = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss"); 
     // public static DateTimeFormatter fmtDisplay = DateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss");
     public static DateTimeFormatter fmtDisplay = DateTimeFormat.shortDateTime();
-    public static DateTimeFormatter fmtHHMMSS = DateTimeFormat.forPattern("HHmmss");
+    public static DateTimeFormatter fmtHHMMSS = DateTimeFormat.forPattern("HHmmss"); 
     // This sets the number of messages displayed
     private int intMessageQueueLength = 50;
     // This stores the last intMessageQueueLength messages
     private List listRecentActivityStrings = new ArrayList(intMessageQueueLength);
     private soundFilesTableModel ourTableModel = new soundFilesTableModel();
-    private static String strLastFileOpenFilter = "";
-    private static String strLastFileSaveAsFilter = "";
+    private static String strLastFileOpenFilter = ""; 
+    private static String strLastFileSaveAsFilter = ""; 
     final static ResourceBundle rbProject = ResourceBundle.getBundle("jprojecttranslator.version"); 
+    final static ResourceBundle rbLanguageBundle = ResourceBundle.getBundle("jprojecttranslator/Bundle"); 
+    final static java.text.MessageFormat formatter = new java.text.MessageFormat("");
     protected static String strBuild;
-    protected static final String strVersion = "0.1";
+    protected static final String strVersion = "0.1"; 
     public static java.text.NumberFormat nf = java.text.NumberFormat.getInstance();
     
     /**
@@ -97,36 +92,36 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     * in a new line character.*/
     public String getActivityString(){
         Iterator itStrings = listRecentActivityStrings.iterator();
-        String tempString = "";
+        String tempString = ""; //NOI18N
         while (itStrings.hasNext()) {
-            tempString = tempString + (String)itStrings.next() + "\n";
+            tempString = tempString + (String)itStrings.next() + "\n"; //NOI18N
         }
         return tempString;
     }    
     public void update(Observable o, Object arg) {
 //        System.out.println("jProjectTranslator notified of change o " + o.getClass().toString() + " arg " + arg.getClass().toString());
         // One of the observed objects has changed
-        String strSQL = "";
+        String strSQL = ""; 
         if (o instanceof jProjectReader) {
             int intPercentProgress = ((jProjectReader)o).getPercentProgress();
             
             try {
                 Connection conn = ourDatabase.getConnection();
                 Statement st = conn.createStatement();
-                strSQL = "SELECT strTitle, dtsCreated FROM PUBLIC.PROJECT;";
+                strSQL = "SELECT strTitle, dtsCreated FROM PUBLIC.PROJECT;"; 
                 st = conn.createStatement();
                 ResultSet rs = st.executeQuery(strSQL);
                 rs.next();
-                String strTitle = URLDecoder.decode(rs.getString(1), "UTF-8");
+                String strTitle = URLDecoder.decode(rs.getString(1), "UTF-8"); 
                 DateTime dtCreated = fmtSQL.withZone(DateTimeZone.UTC).parseDateTime(rs.getString(2).substring(0, 19));
                 String strCreated  = fmtDisplay.withZone(DateTimeZone.getDefault()).print(dtCreated);
                 jTextField1.setText(strTitle);
                 jTextField2.setText(strCreated);
 
             } catch (java.sql.SQLException e) {
-                System.out.println("Error on SQL " + strSQL + e.toString());
+                System.out.println("Error on SQL " + strSQL + e.toString()); 
             } catch (java.io.UnsupportedEncodingException e) {
-                System.out.println("Error on decoding at " + strSQL + e.toString());
+                System.out.println("Error on decoding at " + strSQL + e.toString()); 
             }
             
             jProgressBar1.setValue(intPercentProgress);
@@ -139,7 +134,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 if (arg instanceof BWFProcessor) {
                     // A file is being written, update the progress bar
                     BWFProcessor tempBWFProcessor = (BWFProcessor)arg;
-                    String strUMID = URLEncoder.encode(tempBWFProcessor.getBextOriginatorRef(), "UTF-8");
+                    String strUMID = URLEncoder.encode(tempBWFProcessor.getBextOriginatorRef(), "UTF-8");  
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = " + tempBWFProcessor.getLByteWriteCounter() +  " WHERE strUMID = \'" + strUMID + "\';";
 //                    System.out.println("SQL " + strSQL);
                     int i = st.executeUpdate(strSQL);
@@ -210,7 +205,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenuItem6 = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setTitle("Project Translator");
+        java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle"); // NOI18N
+        setTitle(bundle.getString("jProjectTranslator.title")); // NOI18N
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 formWindowClosing(evt);
@@ -222,7 +218,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jToolBar1.setPreferredSize(new java.awt.Dimension(139, 32));
 
         jButton1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jprojecttranslator/Gnome-document-open.png"))); // NOI18N
-        jButton1.setToolTipText("Open");
+        jButton1.setToolTipText(bundle.getString("jProjectTranslator.jButton1.toolTipText")); // NOI18N
         jButton1.setFocusable(false);
         jButton1.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
         jButton1.setMaximumSize(new java.awt.Dimension(48, 32));
@@ -237,7 +233,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jToolBar1.add(jButton1);
 
         jButton2.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jprojecttranslator/Gnome-document-save-as.png"))); // NOI18N
-        jButton2.setToolTipText("Save As");
+        jButton2.setToolTipText(bundle.getString("jProjectTranslator.jButton2.toolTipText")); // NOI18N
         jButton2.setFocusable(false);
         jButton2.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
         jButton2.setMaximumSize(new java.awt.Dimension(48, 32));
@@ -252,7 +248,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jToolBar1.add(jButton2);
 
         jButton3.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jprojecttranslator/Gnome-application-exit.png"))); // NOI18N
-        jButton3.setToolTipText("Exit");
+        jButton3.setToolTipText(bundle.getString("jProjectTranslator.jButton3.toolTipText")); // NOI18N
         jButton3.setFocusable(false);
         jButton3.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
         jButton3.setMaximumSize(new java.awt.Dimension(48, 32));
@@ -266,9 +262,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         });
         jToolBar1.add(jButton3);
 
-        jLabel1.setText("Project name");
+        jLabel1.setText(bundle.getString("jProjectTranslator.jLabel1.text")); // NOI18N
 
-        jLabel2.setText("Project creation date");
+        jLabel2.setText(bundle.getString("jProjectTranslator.jLabel2.text")); // NOI18N
 
         jTextField1.setEditable(false);
         jTextField1.setMinimumSize(new java.awt.Dimension(200, 31));
@@ -336,11 +332,11 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         );
 
         jMenu1.setMnemonic('f');
-        jMenu1.setText("File");
+        jMenu1.setText(bundle.getString("jProjectTranslator.jMenu1.text")); // NOI18N
 
         jMenuItem1.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem1.setMnemonic('o');
-        jMenuItem1.setText("Open");
+        jMenuItem1.setText(bundle.getString("jProjectTranslator.jMenuItem1.text")); // NOI18N
         jMenuItem1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menuOpen(evt);
@@ -350,7 +346,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
         jMenuItem2.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem2.setMnemonic('v');
-        jMenuItem2.setText("Save As");
+        jMenuItem2.setText(bundle.getString("jProjectTranslator.jMenuItem2.text")); // NOI18N
         jMenuItem2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menuSave(evt);
@@ -359,7 +355,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenu1.add(jMenuItem2);
 
         jMenuItem4.setMnemonic('p');
-        jMenuItem4.setText("Preferences");
+        jMenuItem4.setText(bundle.getString("jProjectTranslator.jMenuItem4.text")); // NOI18N
         jMenuItem4.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menuPreferences(evt);
@@ -369,7 +365,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
 
         jMenuItem3.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Q, java.awt.event.InputEvent.CTRL_MASK));
         jMenuItem3.setMnemonic('x');
-        jMenuItem3.setText("Exit");
+        jMenuItem3.setText(bundle.getString("jProjectTranslator.jMenuItem3.text")); // NOI18N
         jMenuItem3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 exitForm(evt);
@@ -380,10 +376,10 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenuBar1.add(jMenu1);
 
         jMenu2.setMnemonic('h');
-        jMenu2.setText("Help");
+        jMenu2.setText(bundle.getString("jProjectTranslator.jMenu2.text")); // NOI18N
 
         jMenuItem5.setMnemonic('a');
-        jMenuItem5.setText("About");
+        jMenuItem5.setText(bundle.getString("jProjectTranslator.jMenuItem5.text")); // NOI18N
         jMenuItem5.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menuAbout(evt);
@@ -392,7 +388,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jMenu2.add(jMenuItem5);
 
         jMenuItem6.setMnemonic('l');
-        jMenuItem6.setText("Licence");
+        jMenuItem6.setText(bundle.getString("jProjectTranslator.jMenuItem6.text")); // NOI18N
         jMenuItem6.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 menuLicence(evt);
@@ -423,7 +419,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                                     .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 188, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 402, javax.swing.GroupLayout.PREFERRED_SIZE))))
                         .addGap(0, 330, Short.MAX_VALUE))
-                    .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 937, Short.MAX_VALUE)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 950, Short.MAX_VALUE)
                     .addComponent(jProgressBar1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
@@ -557,9 +553,13 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             file = new File(path + "." + extension);
         }
         if ( file.exists() ) {  
-            String msg = "The file " + file.getName().toString() + " already exists!\nDo you want to replace it?";  
-            msg = java.text.MessageFormat.format( msg, new Object[] { file.getName() } );  
-            String title = "Warning";  
+//            Object[] messageArguments = {file.getName().toString()};
+//            formatter.applyPattern(rbLanguageBundle.getString("jProjectTranslator.FileAlreadyExists"));
+//            String msg = formatter.format(messageArguments);
+            String msg = rbLanguageBundle.getString("jProjectTranslator.FileAlreadyExists");
+//            String msg = "The file " + file.getName().toString() + " already exists!\nDo you want to replace it?";  
+            msg = java.text.MessageFormat.format( msg, new Object[] { file.getName().toString() } );  
+            String title = java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectTranslator.Warning");  
             int option = JOptionPane.showConfirmDialog( this, msg, title, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE );  
             if ( option == JOptionPane.NO_OPTION ) {  
                 return; 
@@ -741,7 +741,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         ourTableModel.updateData(ourDatabase);
     }
     class soundFilesTableModel extends AbstractTableModel {
-        final String[] columnNames = new String [] {"Name" , "Source file" , "Status", "Duration", "Sample rate"};
+        final String[] columnNames = new String [] {rbLanguageBundle.getString("jProjectTranslator.Table.Name") , rbLanguageBundle.getString("jProjectTranslator.Table.SourceFile")
+                , rbLanguageBundle.getString("jProjectTranslator.Table.Status"), rbLanguageBundle.getString("jProjectTranslator.Table.Duration"), rbLanguageBundle.getString("jProjectTranslator.Table.SampleRate")};
         Object[][] data = new Object [][] { };
         protected database ourDatabase;
         protected String strSQL;
@@ -804,9 +805,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                         data[row][1] = URLDecoder.decode(rs.getString(2), "UTF-8");
                         lDuration = rs.getLong(3);
                         if (lDuration > 0) {
-                            data[row][2] = "Found";
+                            data[row][2] = rbLanguageBundle.getString("jProjectTranslator.Found");
                         } else  {
-                            data[row][2] = "Not found";
+                            data[row][2] = rbLanguageBundle.getString("jProjectTranslator.NotFound");
                         }
                         
                         data[row][3] = getTimeString(rs.getFloat(5));
