@@ -40,46 +40,47 @@ public class jPreferences extends javax.swing.JDialog {
         jLabel6 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("Preferences");
+        java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle"); // NOI18N
+        setTitle(bundle.getString("jPreferences.title")); // NOI18N
         setAlwaysOnTop(true);
         setModal(true);
         setResizable(false);
 
-        jLabel1.setText("Sample rate");
+        jLabel1.setText(bundle.getString("jPreferences.jLabel1.text")); // NOI18N
 
         jComboBox1.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "48000", "44100" }));
 
-        jLabel2.setText("Frame rate");
+        jLabel2.setText(bundle.getString("jPreferences.jLabel2.text")); // NOI18N
 
         jComboBox2.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "24", "25", "29.97", "30" }));
 
-        jButton1.setText("OK");
-        jButton1.setMaximumSize(new java.awt.Dimension(54, 26));
-        jButton1.setMinimumSize(new java.awt.Dimension(54, 26));
-        jButton1.setPreferredSize(new java.awt.Dimension(54, 26));
+        jButton1.setText(bundle.getString("jPreferences.jButton1.text")); // NOI18N
+        jButton1.setMaximumSize(new java.awt.Dimension(81, 25));
+        jButton1.setMinimumSize(new java.awt.Dimension(81, 25));
+        jButton1.setPreferredSize(new java.awt.Dimension(81, 25));
         jButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 okPressed(evt);
             }
         });
 
-        jButton2.setText("Cancel");
+        jButton2.setText(bundle.getString("jPreferences.jButton2.text")); // NOI18N
         jButton2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton2ActionPerformed(evt);
             }
         });
 
-        jLabel3.setText("Xfade length");
+        jLabel3.setText(bundle.getString("jPreferences.jLabel3.text")); // NOI18N
 
-        jTextField1.setText("200");
-        jTextField1.setToolTipText("Crossfade length in milliseconds");
+        jTextField1.setText(bundle.getString("jPreferences.jTextField1.text")); // NOI18N
+        jTextField1.setToolTipText(bundle.getString("jPreferences.jTextField1.toolTipText")); // NOI18N
 
-        jLabel4.setText("Hz");
+        jLabel4.setText(bundle.getString("jPreferences.jLabel4.text")); // NOI18N
 
-        jLabel5.setText("Frames/s");
+        jLabel5.setText(bundle.getString("jPreferences.jLabel5.text")); // NOI18N
 
-        jLabel6.setText("ms");
+        jLabel6.setText(bundle.getString("jPreferences.jLabel6.text")); // NOI18N
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -87,26 +88,26 @@ public class jPreferences extends javax.swing.JDialog {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jButton2))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jButton2)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel1)
-                            .addComponent(jLabel2)
-                            .addComponent(jLabel3))
-                        .addGap(25, 25, 25)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jComboBox1, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jTextField1)
-                            .addComponent(jComboBox2, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
-                .addGap(18, 18, 18)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel4)
-                    .addComponent(jLabel5)
-                    .addComponent(jLabel6))
+                            .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(layout.createSequentialGroup()
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel1)
+                                    .addComponent(jLabel2)
+                                    .addComponent(jLabel3))
+                                .addGap(25, 25, 25)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(jComboBox1, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(jTextField1)
+                                    .addComponent(jComboBox2, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                        .addGap(18, 18, 18)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel4)
+                            .addComponent(jLabel5)
+                            .addComponent(jLabel6))))
                 .addContainerGap(54, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
@@ -131,7 +132,7 @@ public class jPreferences extends javax.swing.JDialog {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jButton2))
-                .addContainerGap(43, Short.MAX_VALUE))
+                .addContainerGap(44, Short.MAX_VALUE))
         );
 
         pack();

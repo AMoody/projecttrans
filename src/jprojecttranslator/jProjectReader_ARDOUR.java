@@ -53,10 +53,10 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         if (parseARDOURXML(xmlDocument.getRootElement())) {
             System.out.println("XML parsed in to database");
-            oProjectTranslator.writeStringToPanel("Project loaded.");
+            oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectReader.ProjectLoaded"));
         } else {
             System.out.println("Failed to parse XML data");
-            oProjectTranslator.writeStringToPanel("Failed to parse XML source data correctly");
+            oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectReader.FailReadXML"));
             return false;
         }
         

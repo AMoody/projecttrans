@@ -64,9 +64,9 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         * Next step is to create an ADL file and write the output.
         */
         writeADLFile(fDestFile, st);
-        oProjectTranslator.writeStringToPanel("ADL file written");
+        oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.ADLFileWritten"));
         writeAudioFiles ();
-        oProjectTranslator.writeStringToPanel("Finished");
+        oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.Finished"));
         System.out.println("AES31 writer thread finished");
         return true;
     }
@@ -615,7 +615,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                     continue;
                  }
                  System.out.println("Starting audio file write on dest file " + strURI);
-                 oProjectTranslator.writeStringToPanel("Writing audio file " + strURI);
+                 oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.WritingAudioFile") + strURI);
         
                  tempBWFProcessor.addObserver(this);
                  tempBWFProcessor.writeFile(fDestFile);

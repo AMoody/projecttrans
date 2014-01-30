@@ -86,9 +86,9 @@ public class jProjectWriter extends Observable implements Observer{
             rs.next();
             lRequiredDiskSpace = rs.getLong(1);
             if (lRequiredDiskSpace > lUsableDiskSpace) {
-                oProjectTranslator.writeStringToPanel("Unable to write file, insufficient free space on disk");
-                oProjectTranslator.writeStringToPanel("Disk space required is " + oProjectTranslator.humanReadableByteCount(lRequiredDiskSpace,false));
-                oProjectTranslator.writeStringToPanel("Disk space available is " + oProjectTranslator.humanReadableByteCount(lUsableDiskSpace,false));
+                oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.UnableToWriteFile"));
+                oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.DiskSpaceRequired") + oProjectTranslator.humanReadableByteCount(lRequiredDiskSpace,false));
+                oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.DiskSpaceAvailable") + oProjectTranslator.humanReadableByteCount(lUsableDiskSpace,false));
                 return false;
             } 
         } catch (java.sql.SQLException e) {
