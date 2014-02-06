@@ -632,8 +632,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 + "<br>http://joda-time.sourceforge.net/license.html"
                 + "<br><br><b>NanoHTTPD</b>"
                 + "<br>Modified BSD licence"
-                + "<br>Copyright © 2001,2005-2012 Jarno Elonen <elonen@iki.fi> and Copyright © 2010 Konstantinos Togias <info@ktogias.gr>"
-                + "<br>http://elonen.iki.fi/code/nanohttpd/index.html"
+                + "<br>Copyright © 2012-2013 by Paul S. Hawke, 2001,2005-2013 by Jarno Elonen, 2010 by Konstantinos Togias"
+                + "<br>http://nanohttpd.com/"
                 + "<br><br><b>Drop frame timecode calculations.</b>"
                 + "<br>Code by David Heidelberger (http://www.davidheidelberger.com), adapted from Andrew Duncan's work (http://www.andrewduncan.ws).</html>");
         dlgLicence.setLocationRelativeTo(null);
