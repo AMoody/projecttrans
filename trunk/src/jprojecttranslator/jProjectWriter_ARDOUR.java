@@ -319,7 +319,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 strTrackName = rs.getString(2);
                 xmlPlaylist = xmlPlaylists.addElement("Playlist").addAttribute("name",strTrackName+ ".1").addAttribute("orig_diskstream_id","" + intTrackIndex).addAttribute("frozen", "no");
                 strSQL = "SELECT intRegionIndex, strRemark, intSourceIndex, strTrackMap, intSourceIn, "
-                        + "intDestIn, intDestOut, strInFade, intInFade, strOutFade, intOutFade FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + intTrackIndex + ";";
+                        + "intDestIn, intDestOut, strInFade, intInFade, strOutFade, intOutFade, strGain FROM PUBLIC.EVENT_LIST WHERE intTrackIndex = " + intTrackIndex + ";";
                 rs2 = st.executeQuery(strSQL);
                 while (rs2.next()) {
                     // Get a region from the SOURCE_INDEX table which we can then modify
@@ -358,8 +358,18 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                     } else {
                         strFlags = strFlags + "DefaultFadeOut,FadeOut";
                     }
+                    Float fGain;
+                    if (rs2.getString(12) != null && rs2.getString(12).length() > 1) {
+                        // Get the region gain and convert it to Ardour format
+                        fGain = Float.parseFloat(rs2.getString(12));
+                        fGain = (float)Math.pow(10,fGain/20);
+                    } else {
+                        fGain = (float)1;
+                    }
+                    
+                    
                     xmlRegion.addAttribute("flags",strFlags);
-                    xmlRegion.addAttribute("id","" + rs2.getInt(1)).addAttribute("start","" + rs2.getInt(5)).addAttribute("length","" + (rs2.getInt(7) - rs2.getInt(6))).addAttribute("position","" + rs2.getInt(6));
+                    xmlRegion.addAttribute("id","" + rs2.getInt(1)).addAttribute("start","" + rs2.getInt(5)).addAttribute("length","" + (rs2.getInt(7) - rs2.getInt(6))).addAttribute("position","" + rs2.getInt(6)).addAttribute("scale-gain","" + fGain);
                     xmlRegion.addElement("extra").addElement("GUI").addAttribute("waveform-visible","yes")
                             .addAttribute("envelope-visible","no").addAttribute("waveform-rectified","no").addAttribute("waveform-logscaled","no");
                     xmlPlaylist.add(xmlRegion);

@@ -436,7 +436,7 @@ public class jProjectReader_AES31 extends jProjectReader {
         int intFinds = 0;
         int intIndex = 0, intSourceIndex = 0;
         long lSourceIn, lDestIn, lDestOut, lInFade, lOutFade;
-        String strType, strRef, strTrackMap, strRemark, strInFade, strOutFade;
+        String strType, strRef, strTrackMap, strRemark, strInFade, strOutFade, strGain;
         pPattern = Pattern.compile("\\s*\\(Entry\\)\\s*(\\d\\d\\d\\d)");
         mMatcher = pPattern.matcher(strEvent);  
         if (mMatcher.find()) {
@@ -520,14 +520,22 @@ public class jProjectReader_AES31 extends jProjectReader {
             System.out.println("Error on while trying to encode string" );
             return false;
         }
-        
+        // Looking for optional gain entry which should look something like this...
+        // (Gain) _ +5.00
+        pPattern = Pattern.compile("\\(Gain\\)\\s*_\\s*([+-]?\\d+\\.?\\d*|_)");
+        mMatcher = pPattern.matcher(strEvent);  
+        if (mMatcher.find()) {
+            strGain = mMatcher.group(1);
+        } else {
+            strGain = "";
+        }
         try {
                 strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
-                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, intTrackIndex, bOpaque) VALUES (" +
+                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, intTrackIndex, bOpaque, strGain) VALUES (" +
                     intIndex + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
                         + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', "
                         + "\'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ", " + intIndex + ""
-                        + ", 0, 0, \'N\') ;";
+                        + ", 0, 0, \'N\', \'" + strGain + "\') ;";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());

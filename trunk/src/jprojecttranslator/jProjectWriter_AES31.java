@@ -172,6 +172,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             String strDestIn;
             String strDestOut;
             String strRemark;
+            String strGain;
             String strTimeCodeOffset;
             String strInFade = "";
             String strOutFade = "";
@@ -193,7 +194,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             // Fill in the EVENT_LIST tags
             strADLText = strADLText + str4Space + "<EVENT_LIST>\n";
             strSQL = "SELECT EVENT_LIST.intIndex, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, "
-                    + "strRemark, intTimeCodeOffset, strInFade, intInFade, strOutFade, intOutFade FROM PUBLIC.EVENT_LIST, PUBLIC.SOURCE_INDEX "
+                    + "strRemark, intTimeCodeOffset, strInFade, intInFade, strOutFade, intOutFade, strGain FROM PUBLIC.EVENT_LIST, PUBLIC.SOURCE_INDEX "
                     + "WHERE EVENT_LIST.intSourceIndex = SOURCE_INDEX.intIndex ORDER BY EVENT_LIST.intIndex;";
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
@@ -204,6 +205,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strDestIn = getADLTimeString(rs.getInt(5), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strDestOut = getADLTimeString(rs.getInt(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strRemark = URLDecoder.decode(rs.getString(7), "UTF-8");
+                strGain = rs.getString(13);
                 strInFade = rs.getString(9);
                 strOutFade = rs.getString(11);
                 strADLText = strADLText + str8Space + "(Entry) " + strIndex + "\n";
@@ -216,6 +218,9 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 }                
                 if (strRemark != null && strRemark.length() > 0) {
                     strADLText = strADLText + str12Space + "(Rem) NAME \"" + strRemark + "\"\n";
+                }
+                if (strGain != null && strGain.length() > 1) {
+                    strADLText = strADLText + str12Space + "(Gain) _ " + strGain + "\n";
                 }
             }
 
