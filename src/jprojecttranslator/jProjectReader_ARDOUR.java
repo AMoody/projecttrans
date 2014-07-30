@@ -832,6 +832,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         long lDestIn = (Long.parseLong(xmlRegion.attributeValue("position")));
         long lDestOut = (Long.parseLong(xmlRegion.attributeValue("length"))) + lDestIn;
         long lSourceIn = (Long.parseLong(xmlRegion.attributeValue("start")));
+        // In Ardour the gain is a value to use a mutliplication, so 0dB = 1 in Ardour, need to convert this to dB for AES31
+        String strGain = xmlRegion.attributeValue("scale-gain");
+        Float fGain = Float.parseFloat(strGain);
+        Double dGain = 20*Math.log10(fGain);
+        strGain = String.format(Locale.UK,"%.2f", dGain);
         strType = "Cut";
         String strRef = "I";
         String strSourceChannel = "1";
@@ -889,11 +894,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 }
                 strTrackMap = strSourceChannel + " " + strDestChannel;
                 strSQL = "INSERT INTO PUBLIC.EVENT_LIST (intIndex, strType, strRef, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, strRemark"
-                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, intTrackIndex, bOpaque) VALUES (" +
+                        + ", strInFade, intInFade, strOutFade, intOutFade, intRegionIndex, intLayer, intTrackIndex, bOpaque, strGain) VALUES (" +
                     intClipCounter++ + ", \'" + strType + "\',\'" + strRef + "\'," + intSourceIndex + ",\'" + strTrackMap + ""
                         + "\'," + lSourceIn + "," + lDestIn + "," + lDestOut + ",\'" + strRemark + "\', "
                         + "\'" + strInFade + "\', " + lInFade + ", \'" + strOutFade + "\', " + lOutFade + ", " + intRegionIndex + ""
-                        + ", " + intLayer + ", " + intTrackIndex + ", \'" + strOpaque + "\') ;";
+                        + ", " + intLayer + ", " + intTrackIndex + ", \'" + strOpaque + "\', \'" + strGain + "\') ;";
                 int j = st.executeUpdate(strSQL);
                 if (j == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());

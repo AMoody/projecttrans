@@ -63,7 +63,7 @@ public class database {
              * intIndex This is the key for the table
              * strType  This always seems to be Cut
              * strRef   This always seems to be I
-             * intSourceIndex   This refers to the entry in the SOUCE_INDEX table
+             * intSourceIndex   This refers to the entry in the SOURCE_INDEX table
              * strTrackMap      This is a string used in an ADL file, e.g. 1~2 3~4 means tracks 1 and 2 from the source file go to tracks 3 and 4 in the EDL. Could also be 23 23 etc for mono files.
              * intSourceIn      This is a long or bigint, it's the in point in the source file in samples.
              * intDestIn        This is a long or bigint, it's the in point in the EDL in samples.
@@ -77,13 +77,14 @@ public class database {
              * intLayer         This is used by Ardour, regions on an edl track can lie above or below each other
              * intTrackIndex    This is used by Ardour, these are  edl tracks
              * bOpaque          This is used by Ardour, if a region is opaque then regions underneath can not be heard unless the overlap is a crossfade
+             * strGain          This is sometimes present in an ADL file and can be used in an Ardour file too, it could be e.g. +5.00 or _ or an empty string.
              * 
              */
             strSQL = "CREATE TABLE PUBLIC.EVENT_LIST (intIndex INTEGER NOT NULL," +
                     "strType VARCHAR(16), strRef VARCHAR(4), intSourceIndex INTEGER NOT NULL," +
                     "strTrackMap VARCHAR(16), intSourceIn BIGINT NOT NULL, intDestIn BIGINT NOT NULL, intDestOut BIGINT NOT NULL," +
                     "strRemark VARCHAR(512), strInFade VARCHAR(30), intInFade BIGINT,  strOutFade VARCHAR(30), intOutFade BIGINT, intRegionIndex INTEGER, "
-                    + "intLayer INTEGER, intTrackIndex INTEGER, bOpaque VARCHAR(1), " +
+                    + "intLayer INTEGER, intTrackIndex INTEGER, bOpaque VARCHAR(1), strGain VARCHAR(10), " +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
