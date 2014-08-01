@@ -583,24 +583,25 @@ public class BWFProcessor extends Observable implements Runnable {
             // Thats the first 12 bytes written, now we need to add the bext Chunk
             chunkIterator = startChunks.iterator();  
             while (chunkIterator.hasNext()){
-                  tempChunk = (Chunk)chunkIterator.next();
-                  // Is this the bext Chunk?
-                  if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
-                      // Yes we have found the bext Chunk, this needs to go at the start of the file
-                      outChannel.write(tempChunk.getBytes());
-                      lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
-                      // Now remove it from the Vector so it does not get added again
-                      startChunks.remove(tempChunk);
-                      bHasBextChunk = false;
-                      break;
-                  }
+                tempChunk = (Chunk)chunkIterator.next();
+                // Is this the bext Chunk?
+                if ((tempChunk.getckID()).equalsIgnoreCase("bext")){
+                    // Yes we have found the bext Chunk, this needs to go at the start of the file
+                    outChannel.write(tempChunk.getBytes());
+                    lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
+                    break;
+                }
             }            
             // Now write the data from the other start chunks
             chunkIterator = startChunks.iterator();
             while (chunkIterator.hasNext()){
                 tempChunk = (Chunk)chunkIterator.next();
-                outChannel.write(tempChunk.getBytes());
-                lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
+                // Skip the bext chunk this time around
+                if (!(tempChunk.getckID()).equalsIgnoreCase("bext")){
+                    outChannel.write(tempChunk.getBytes());
+                    lByteWriteCounter = lByteWriteCounter + tempChunk.getckSIZE() + 8;
+                }
+                
             }
             // The start chunks are written, now we need to add the remainder of the source file starting from the data Chunk.
             ByteBuffer byteTempData = ByteBuffer.allocate(8);
