@@ -14,6 +14,8 @@ public class jHelp extends javax.swing.JDialog {
 
     /**
      * Creates new form jHelp
+     * @param parent
+     * @param modal
      */
     public jHelp(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
@@ -180,6 +182,7 @@ public class jHelp extends javax.swing.JDialog {
          */
         java.awt.EventQueue.invokeLater(new Runnable() {
 
+            @Override
             public void run() {
                 jHelp dialog = new jHelp(new javax.swing.JFrame(), true);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {

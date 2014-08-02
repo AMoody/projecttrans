@@ -89,7 +89,8 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         jTextArea1.setCaretPosition(jTextArea1.getDocument().getLength());
     }
     /** This returns a string which contains the recent activity. Each line is terminated
-    * in a new line character.*/
+    * in a new line character
+     * @return Returns a string which contains the recent activity.*/
     public String getActivityString(){
         Iterator itStrings = listRecentActivityStrings.iterator();
         String tempString = ""; //NOI18N
@@ -98,6 +99,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         }
         return tempString;
     }    
+    @Override
     public void update(Observable o, Object arg) {
 //        System.out.println("jProjectTranslator notified of change o " + o.getClass().toString() + " arg " + arg.getClass().toString());
         // One of the observed objects has changed
@@ -451,9 +453,9 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         usersIniFile.WriteInteger("General","WindowWidth",ourWindow.getWidth());
         usersIniFile.WriteInteger("General","WindowHeight",ourWindow.getHeight());
         if (ourWindow.getLocationOnScreen().x > 0)
-        usersIniFile.WriteInteger("General","WindowX",ourWindow.getLocationOnScreen().x);
+            usersIniFile.WriteInteger("General","WindowX",ourWindow.getLocationOnScreen().x);
         if (ourWindow.getLocationOnScreen().y > 0)
-        usersIniFile.WriteInteger("General","WindowY",ourWindow.getLocationOnScreen().y);
+            usersIniFile.WriteInteger("General","WindowY",ourWindow.getLocationOnScreen().y);
         usersIniFile.WriteInteger("General", "SampleRate", intPreferredSampleRate);
         usersIniFile.WriteInteger("General", "XfadeLength", intPreferredXfadeLength);
         usersIniFile.WriteString("General", "FrameRate", String.format("%.2f", dPreferredFrameRate));
@@ -723,6 +725,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
          */
         java.awt.EventQueue.invokeLater(new Runnable() {
 
+            @Override
             public void run() {
                 ourWindow = new jProjectTranslator();
                 java.awt.Dimension screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
