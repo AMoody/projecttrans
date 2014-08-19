@@ -299,6 +299,13 @@ public class BWFProcessor extends Observable implements Runnable {
             status = 3;
             writeFile();
         }
+        if (inChannel instanceof FileChannel) {
+            try {
+                inChannel.close();
+            } catch(IOException e) {
+                System.out.println("An exception was caused while closing file " + inFile.toString() + " " + e.toString());
+            }
+        }
         try {
             inFile.close();
         } catch (Exception e) {
