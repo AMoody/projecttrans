@@ -955,8 +955,8 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             strName = URLEncoder.encode(strName, "UTF-8");
 //            strURI = URLEncoder.encode(strURI, "UTF-8");
             strFileName = URLEncoder.encode(strFileName, "UTF-8");
-            strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strName, strSourceFile, intCopied, intLength, intFileOffset, intTimeCodeOffset, intArdourChannel) VALUES (" +
-                intIndex + ", \'F\',\'" + strURI + "\', \'" + strName + "\', \'" + strFileName + "\', 0, 0, 0, 0," + intChannel + ") ;";
+            strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strName, strSourceFile, intCopied, intLength, intFileOffset, intTimeCodeOffset, intArdourChannel, strUMID) VALUES (" +
+                intIndex + ", \'F\',\'" + strURI + "\', \'" + strName + "\', \'" + strFileName + "\', 0, 0, 0, 0," + intChannel + ", \'\') ;";
             int i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
