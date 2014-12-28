@@ -16,7 +16,8 @@ public class Chunk {
     private ByteBuffer data;
     private int minSize = 0;
     
-    /** Creates a new instance of Chunk */
+    /** Creates a new instance of Chunk
+     * @param inputData */
     public Chunk(ByteBuffer inputData) {
         // The first four bytes are the ascii character code, not unicode
         StringBuilder strTemp = new StringBuilder(4);
@@ -32,10 +33,13 @@ public class Chunk {
         while ((inputData.hasRemaining() && data.hasRemaining())) {
             data.put(inputData.get());
         }
+        inputData = null;
         // System.out.println("Chunk object created with ckID of  " + ckID + " and size is " + ckSIZE);
     }
     
-    /** Alternate constructor allows the creation of a minimum size for the Chunk*/
+    /** Alternate constructor allows the creation of a minimum size for the Chunk
+     * @param inputData
+     * @param setMinSize*/
     public Chunk(ByteBuffer inputData, int setMinSize){
         minSize = setMinSize;
         // The first four bytes are the ascii character code, not unicode
@@ -61,6 +65,7 @@ public class Chunk {
         while (data.hasRemaining()) {
             data.put(nullByte);
         }
+        inputData = null;
         // System.out.println("Chunk object created with ckID of  " + ckID + " and size is " + ckSIZE);        
         
     }

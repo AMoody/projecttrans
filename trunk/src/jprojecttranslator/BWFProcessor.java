@@ -35,7 +35,7 @@ public class BWFProcessor extends Observable implements Runnable {
      * wave file starting after (but not including) the data Chunk.
      */
     public Vector endChunks = new Vector(3);
-    private ByteBuffer sourceBytes = ByteBuffer.allocate(262144);
+    private ByteBuffer sourceBytes;
     private FileInputStream inFile = null;
     private FileOutputStream outFile = null;
     private FileChannel inChannel, outChannel;
@@ -332,6 +332,7 @@ public class BWFProcessor extends Observable implements Runnable {
      * @return true if file was read successfully
      */
     public boolean readFile(long setSourceFileStart, long setSourceFileEnd) {
+        sourceBytes = ByteBuffer.allocate(262144);
         if (bMultipart) {
             lSourceFileStart = setSourceFileStart;
             lSourceFileEnd = setSourceFileEnd;
@@ -393,6 +394,7 @@ public class BWFProcessor extends Observable implements Runnable {
             System.out.println("Start of file looks OK, now looking at end chunks.");
         }
         extractChunks(sourceBytes,startChunks);
+        sourceBytes = null;
         if (errorcode!= 0) {
             System.out.println("Error, can not parse input file " + srcFile);
 //            jMediaHarvest.writeErrorString("Error, can not parse input file " + srcFile);
@@ -482,6 +484,7 @@ public class BWFProcessor extends Observable implements Runnable {
             // The buffer extraSourceBytes should now contain the chunks at the end of the file.
             extraSourceBytes.flip();
             extractChunks(extraSourceBytes,endChunks);
+            extraSourceBytes = null;
             // The extra chunks have now been read so the file size calculation should be OK.
             lCalculatedFileSize = dataChunkSize + 8 + 12;
             // Thats the data Chunk added, now to add the other chucks.
@@ -527,6 +530,7 @@ public class BWFProcessor extends Observable implements Runnable {
         }
         try {
             inFile.close();
+            System.gc();
         } catch (java.io.IOException e) {
 
         }
@@ -558,7 +562,8 @@ public class BWFProcessor extends Observable implements Runnable {
         
     }
 
-    private void writeFile(){
+    private void writeFile() {
+        sourceBytes = ByteBuffer.allocate(262144);
         lByteWriteCounter = 0;
         // First update the first 12 bytes of the ByteBuffer sourceBytes with the new file size
         // So we need to calculate the new file size.        
@@ -676,7 +681,8 @@ public class BWFProcessor extends Observable implements Runnable {
             // Rename the dest file extension so that it will be picked up by the next process
             tempDestFile.renameTo(destFile);
             inFile.close();
-
+            sourceBytes = null;
+            System.gc();
         } catch (Exception e) {
             System.out.println("Error while writing new file.");
 //            jMediaHarvest.writeErrorString("Error while writing new file." + destFile);
