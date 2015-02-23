@@ -18,7 +18,12 @@
             <zipfileset src="lib/NanoHTTPD.jar" />			
             <zipfileset src="lib/OpenForecast-0.5.0.jar" />
         </jar>
-    </target>    
+    </target>  
+    <target name="-pre-jar" >
+        <propertyfile file="${src.dir}\jprojecttranslator\version.properties">
+            <entry key="application.buildnumber" value="1" type="int" operation="+"/>
+        </propertyfile>
+    </target>   
     <!--
 
     There exist several targets which are by default empty and which can be 
