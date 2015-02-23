@@ -369,7 +369,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                     
                     
                     xmlRegion.addAttribute("flags",strFlags);
-                    xmlRegion.addAttribute("id","" + rs2.getInt(1)).addAttribute("start","" + rs2.getInt(5)).addAttribute("length","" + (rs2.getInt(7) - rs2.getInt(6))).addAttribute("position","" + rs2.getInt(6)).addAttribute("scale-gain","" + fGain);
+                    xmlRegion.addAttribute("id","" + rs2.getInt(1)).addAttribute("start","" + rs2.getLong(5)).addAttribute("length","" + (rs2.getLong(7) - rs2.getLong(6))).addAttribute("position","" + rs2.getLong(6)).addAttribute("scale-gain","" + fGain);
                     xmlRegion.addElement("extra").addElement("GUI").addAttribute("waveform-visible","yes")
                             .addAttribute("envelope-visible","no").addAttribute("waveform-rectified","no").addAttribute("waveform-logscaled","no");
                     xmlPlaylist.add(xmlRegion);

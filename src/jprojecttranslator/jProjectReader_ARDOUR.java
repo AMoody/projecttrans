@@ -833,7 +833,13 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         long lDestOut = (Long.parseLong(xmlRegion.attributeValue("length"))) + lDestIn;
         long lSourceIn = (Long.parseLong(xmlRegion.attributeValue("start")));
         // In Ardour the gain is a value to use a mutliplication, so 0dB = 1 in Ardour, need to convert this to dB for AES31
-        String strGain = xmlRegion.attributeValue("scale-gain");
+        
+        String strGain;
+        if (xmlRegion.attributeValue("scale-gain") != null) {
+            strGain = xmlRegion.attributeValue("scale-gain");
+        } else {
+            strGain = xmlRegion.attributeValue("scale-amplitude");
+        }
         Float fGain = Float.parseFloat(strGain);
         Double dGain = 20*Math.log10(fGain);
         strGain = String.format(Locale.UK,"%.2f", dGain);
