@@ -368,6 +368,9 @@ public class BWFProcessor extends Observable implements Runnable {
         if (!(strTemp.toString()).equalsIgnoreCase("RIFF")) {
             // First four characters are wrong
             errorcode = 1;
+            if (bDebug) {
+                System.out.println("First four characters are wrong, error code set to " + errorcode + "");
+            }
             status = 5;
         }
         lIndicatedFileSize = sourceBytes.getInt() + 8; // There are 8 extra bytes at the start 'RIFF (filesize(4))'
@@ -387,11 +390,16 @@ public class BWFProcessor extends Observable implements Runnable {
         // Position now twelve bytes from start of file. strTemp should be WAVE check this here
         if (!(strTemp.toString()).equalsIgnoreCase("WAVE")) {
             // Characters 8 - 11 are wrong
+            if (bDebug) {
+                System.out.println("Characters 8 - 11 are wrong, error code set to " + errorcode + "");
+            }
             errorcode = 1;
             status = 5;
         }
         if (bDebug && errorcode == 0) {
-            System.out.println("Start of file looks OK, now looking at end chunks.");
+            System.out.println("Start of file looks OK, now looking at start chunks.");
+        } else {
+            System.out.println("Problem with start of file, error code set to " + errorcode + "");
         }
         extractChunks(sourceBytes,startChunks);
         sourceBytes = null;
@@ -564,6 +572,13 @@ public class BWFProcessor extends Observable implements Runnable {
 
     private void writeFile() {
         sourceBytes = ByteBuffer.allocate(262144);
+        sourceBytes.order(ByteOrder.LITTLE_ENDIAN);
+        // Add the RIFF at the start
+        sourceBytes.position(0);
+        sourceBytes.put("RIFF".getBytes());
+        // Add the WAVE 8 bytes in
+        sourceBytes.position(8);
+        sourceBytes.put("WAVE".getBytes());
         lByteWriteCounter = 0;
         // First update the first 12 bytes of the ByteBuffer sourceBytes with the new file size
         // So we need to calculate the new file size.        
@@ -624,6 +639,7 @@ public class BWFProcessor extends Observable implements Runnable {
             byteTempData.putInt((int)dataChunkSize);
             byteTempData.flip();
             outChannel.write(byteTempData);
+            byteTempData = null;
             inChannel.position(dataChunkOffset + 8);
             lBytePointer = dataChunkOffset + 8;
             long lEndByte;
@@ -728,7 +744,7 @@ public class BWFProcessor extends Observable implements Runnable {
                 // We have found the data Chunk, don't want to load this in, just save the size.
                 dataChunkSize = tempckSIZE;
                 dataChunkOffset = lSourceFileStart + inputData.position() - 8; // This is the offset from the start of file
-                // System.out.println("Data Chunk size is   " + dataChunkSize);
+                System.out.println("Found data Chunk with a size of   " + dataChunkSize);
                 return;
             } else {
                 try {
@@ -1075,7 +1091,7 @@ public class BWFProcessor extends Observable implements Runnable {
     }    
     /**
      * This will set the format tag in the fmt Chunk.
-     * @param setFormatTag This is a short contaning the new format tag.
+     * @param setFormatTag This is a short containing the new format tag.
      * @return         Return true if the title is written successfully.
      */    
     public boolean setFormatTag(short setFormatTag) {
