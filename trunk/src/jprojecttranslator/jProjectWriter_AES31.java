@@ -201,9 +201,9 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             while (rs.next()) {
                 strIndex = String.format("%04d", rs.getInt(1));
                 strSourceIndex = String.format("%04d", rs.getInt(2));
-                strSourceIn = getADLTimeString(rs.getInt(4) + rs.getInt(8), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
-                strDestIn = getADLTimeString(rs.getInt(5), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
-                strDestOut = getADLTimeString(rs.getInt(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                strSourceIn = getADLTimeString(rs.getLong(4) + rs.getLong(8), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                strDestIn = getADLTimeString(rs.getLong(5), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                strDestOut = getADLTimeString(rs.getLong(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strRemark = URLDecoder.decode(rs.getString(7), "UTF-8");
                 strGain = rs.getString(13);
                 strInFade = rs.getString(9);
