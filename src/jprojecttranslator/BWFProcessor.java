@@ -640,6 +640,7 @@ public class BWFProcessor extends Observable implements Runnable {
             byteTempData.flip();
             outChannel.write(byteTempData);
             byteTempData = null;
+            lByteWriteCounter = lByteWriteCounter + 8;
             inChannel.position(dataChunkOffset + 8);
             lBytePointer = dataChunkOffset + 8;
             long lEndByte;
