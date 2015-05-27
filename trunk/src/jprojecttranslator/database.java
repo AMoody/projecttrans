@@ -36,7 +36,7 @@ public class database {
              * This is not used directly by the ADL but some project formats do include information about
              * the tracks in the EDL
              */
-            strSQL = "CREATE TABLE PUBLIC.TRACKS (intIndex INTEGER NOT NULL," +
+            strSQL = "CREATE TABLE PUBLIC.TRACKS (intIndex INTEGER NOT NULL, intAltIndex INTEGER DEFAULT 0," +
                     " strName VARCHAR(256), intChannels INTEGER, intChannelOffset INTEGER, strChannelMap VARCHAR(9)," +
                     "PRIMARY KEY (intIndex));";
             int i = st.executeUpdate(strSQL);

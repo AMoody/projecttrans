@@ -480,7 +480,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         if (strType != null && strType.indexOf("midi") > -1) {
             return -1;
         }
+        // For some reason Ardour 3 sometimes uses the id number from the route and sometimes uses the id from the child element Diskstream so we need to load both.
         int intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("id"));
+        int intAltAudioDiskstreamIndex = 0;
         String strName = xmlRoute.attributeValue("name");
         int intChannelOffset = 1;
         int intChannels = 1;
@@ -490,7 +492,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             return -1;
         }
         if (xmlRoute.element("Diskstream") != null) {
-            intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
+            intAltAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
         }
         try {
             strName = URLEncoder.encode(strName, "UTF-8");
@@ -500,8 +502,8 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             if (!(rs.wasNull()) &&  rs.getInt(1) > 0) {
                 intChannelOffset = rs.getInt(1) + 1;
             } 
-            strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, strName, intChannels, intChannelOffset) VALUES (" +
-                intAudioDiskstreamIndex + ", \'" + strName + "\', " + intChannels + ", " + intChannelOffset + " );";
+            strSQL = "INSERT INTO PUBLIC.TRACKS (intIndex, intAltIndex, strName, intChannels, intChannelOffset) VALUES (" +
+                intAudioDiskstreamIndex + ", " + intAltAudioDiskstreamIndex + ", \'" + strName + "\', " + intChannels + ", " + intChannelOffset + " );";
             int i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -531,8 +533,13 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("diskstream-id"));
             
         } else {
-            if (xmlRoute.element("Diskstream") != null) {
-                intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
+//            if (xmlRoute.element("Diskstream") != null) {
+//                intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
+//            } else {
+//                return -1;
+//            }
+            if (xmlRoute.attributeValue("id") != null) {
+                intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("id"));
             } else {
                 return -1;
             }
@@ -546,7 +553,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             // Found automation data for this track, need to check that there is not already region gain data
             strSQL = "SELECT COUNT(*) FROM PUBLIC.FADER_LIST,PUBLIC.TRACKS WHERE "
                     + "PUBLIC.FADER_LIST.intTrack = PUBLIC.TRACKS.intChannelOffset AND "
-                    + "PUBLIC.TRACKS.intIndex = " + intAudioDiskstreamIndex + ";";
+                    + "(PUBLIC.TRACKS.intIndex = " + intAudioDiskstreamIndex + " OR PUBLIC.TRACKS.intAltIndex = " + intAudioDiskstreamIndex + ");";
             try {
                 ResultSet rs = st.executeQuery(strSQL);
                 rs.next();
@@ -579,7 +586,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             // Found automation data for this track, need to check that there is not already region gain data
             strSQL = "SELECT COUNT(*) FROM PUBLIC.FADER_LIST,PUBLIC.TRACKS WHERE "
                     + "PUBLIC.FADER_LIST.intTrack = PUBLIC.TRACKS.intChannelOffset AND "
-                    + "PUBLIC.TRACKS.intIndex = " + intAudioDiskstreamIndex + ";";
+                    + "(PUBLIC.TRACKS.intIndex = " + intAudioDiskstreamIndex + " OR PUBLIC.TRACKS.intAltIndex = " + intAudioDiskstreamIndex + ");";
             try {
                 ResultSet rs = st.executeQuery(strSQL);
                 rs.next();
@@ -624,7 +631,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             float[] fTemp = {fOffset, fValue};
             listGainValues.add(fTemp);
         } 
-        strSQL = "SELECT intChannels, intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intAudioDiskstreamIndex + ";";
+        strSQL = "SELECT intChannels, intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intAudioDiskstreamIndex + " OR intAltIndex = " + intAudioDiskstreamIndex + ";";
         try {
             ResultSet rs = st.executeQuery(strSQL);
             rs.next();
@@ -705,7 +712,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         }
         
         int intChannelOffset = 1;
-        strSQL = "SELECT intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intPlaylistIndex + ";";
+        strSQL = "SELECT intChannelOffset FROM PUBLIC.TRACKS WHERE intIndex = " + intPlaylistIndex + " OR intAltIndex = " + intPlaylistIndex + ";";
         try {
             ResultSet rs = st.executeQuery(strSQL);
             rs.next();
