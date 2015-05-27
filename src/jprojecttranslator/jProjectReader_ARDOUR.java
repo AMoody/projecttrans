@@ -489,6 +489,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         } else {
             return -1;
         }
+        if (xmlRoute.element("Diskstream") != null) {
+            intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
+        }
         try {
             strName = URLEncoder.encode(strName, "UTF-8");
             strSQL = "SELECT SUM(intChannels) FROM PUBLIC.TRACKS;";
@@ -528,8 +531,8 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("diskstream-id"));
             
         } else {
-            if (xmlRoute.attributeValue("id") != null) {
-                intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("id"));
+            if (xmlRoute.element("Diskstream") != null) {
+                intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
             } else {
                 return -1;
             }
