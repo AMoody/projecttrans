@@ -16,6 +16,7 @@ import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import static jprojecttranslator.jProjectTranslator.ourDatabase;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -68,6 +69,10 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         writeAudioFiles ();
         oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.Finished"));
         System.out.println("AES31 writer thread finished");
+        HTMLFileWriter ourHTMLFileWriter = new HTMLFileWriter(fDestFile.toString() + ".html", ourDatabase);
+        if (ourHTMLFileWriter.bIsValid) {
+            ourHTMLFileWriter.writeFile();
+        }
         return true;
     }
     /* This method fills in the URI column in the SOURCE_INDEX table
@@ -173,7 +178,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
             String strDestOut;
             String strRemark;
             String strGain;
-            String strTimeCodeOffset;
+            String strTimeCodeOffset, strFileDuration;
             String strInFade = "";
             String strOutFade = "";
             st = conn.createStatement();
@@ -186,9 +191,13 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strURI = URLDecoder.decode(strURI, "UTF-8");
                 strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
                 strTimeCodeOffset = getADLTimeString(rs.getLong(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                strFileDuration = "_";
+                if (rs.getLong(4) > 2) {
+                    strFileDuration = getADLTimeString(rs.getLong(4), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                }
                 strName = URLDecoder.decode(rs.getString(5), "UTF-8");
                 strADLText = strADLText + str8Space + "(Index) " + strIndex + "\n";
-                strADLText = strADLText + str12Space + " (F) \"" + strURI + "\" \"" + strUMID + "\" " +  strTimeCodeOffset + " _ \"" + strName + "\" N\n";
+                strADLText = strADLText + str12Space + " (F) \"" + strURI + "\" \"" + strUMID + "\" " +  strTimeCodeOffset + " " + strFileDuration + " \"" + strName + "\" N\n";
             }
             strADLText = strADLText + str4Space + "</SOURCE_INDEX>\n";
             // Fill in the EVENT_LIST tags
