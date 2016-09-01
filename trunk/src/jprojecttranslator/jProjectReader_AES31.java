@@ -663,19 +663,20 @@ public class jProjectReader_AES31 extends jProjectReader {
      */
     protected int loadSoundFiles(Statement st, File fAudioFolder) {
         try {
-            strSQL = "SELECT intIndex, strName, strSourceFile FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+            strSQL = "SELECT intIndex, strName, strSourceFile, intLength FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(strSQL);
             String strSourceFile, strName, strUMID;
             File fLocalSourceFile;
             long lIndicatedFileSize, lSampleRate, lSourceFileSize, lTimeCodeOffset;
-            double dDuration;
+            double dDuration, dSourceSamples;
             int intSourceIndex, intChannels;
             while (rs.next()) {
                 // Loop through the SOURCE_INDEX table and try to find out more about each file by reading data from the actual sound file (if we can find it)
                 intSourceIndex = rs.getInt(1);
                 strName = URLDecoder.decode(rs.getString(2), "UTF-8");
                 strSourceFile = URLDecoder.decode(rs.getString(3), "UTF-8");
+                dSourceSamples = rs.getDouble(4);
                 fLocalSourceFile = new File(fAudioFolder, strSourceFile);
                 tempBWFProc = new BWFProcessor();
                 tempBWFProc.setSrcFile(fLocalSourceFile);
@@ -690,8 +691,12 @@ public class jProjectReader_AES31 extends jProjectReader {
                     lSampleRate = tempBWFProc.getSampleRate();
                     dDuration =  tempBWFProc.getDuration();
                     intChannels = tempBWFProc.getNoOfChannels();
-                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + ", intCHannels = " + intChannels + " "
-                            + "WHERE intIndex = " + intSourceIndex + ";";
+                    if (dSourceSamples < 2) {
+                        dSourceSamples = tempBWFProc.getNoOfSamples()/intChannels;
+                    }
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + ", intChannels = " + intChannels
+                            + ", intLength = " + dSourceSamples
+                            + " WHERE intIndex = " + intSourceIndex + ";";
                     int i = st.executeUpdate(strSQL);
                     if (i == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
