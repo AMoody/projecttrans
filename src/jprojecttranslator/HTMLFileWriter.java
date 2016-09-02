@@ -109,7 +109,7 @@ public class HTMLFileWriter {
     private String getFilesTable() {
         String strReturn = "<div id=\"table\">\n<table><tr>"
                 + "<th>File name</th>\n" +
-                "<th>Duration (hours:minutes:seconds:frames:samples)</th>\n" +
+                "<th>Duration (hours:minutes:seconds)</th>\n" +
                 "<th>UMID</th>\n" +
                 "<th>Status</th>\n" +
                 "</tr>";
@@ -121,15 +121,22 @@ public class HTMLFileWriter {
                 String strDestFileName = URLDecoder.decode(rs.getString(1), "UTF-8");
                 String strDuration = "?";
                 if (rs.getLong(2) > 2) {
-                    strDuration = getADLTimeString(rs.getLong(2), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
+                    // Guess that the sample rate of the file is the project default, might update this later if the actuial sample rate for the file is known
+                    strDuration = jProjectTranslator.getTimeString(rs.getLong(2)/jProjectTranslator.intPreferredSampleRate);
                 }
                 String strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
                 int intSampleRate = rs.getInt(4);
                 String strStatus;
                 if (intSampleRate > 0) {
                     strStatus = "Found";
+                    if (rs.getLong(2) > 2) {
+                        // Update the duration using the actual sample rate for the file
+                        strDuration = jProjectTranslator.getTimeString(rs.getLong(2)/intSampleRate);
+                        // strDuration = getADLTimeString(rs.getLong(2), intSampleRate, jProjectTranslator.dPreferredFrameRate);
+                    }
+                    
                 } else {
-                    strStatus = "NOT Found";
+                    strStatus = "<font color=\"FF4500\">NOT Found</font>";
                 }
                 strReturn = strReturn + "<tr><td>" + strDestFileName + "</td>" + "<td>" + strDuration + "</td>" + "<td>" + strUMID + "</td>" + "<td>" + 
                         strStatus + "</td></tr>";
