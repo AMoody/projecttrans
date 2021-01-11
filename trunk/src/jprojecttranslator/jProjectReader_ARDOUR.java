@@ -618,12 +618,13 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         if (xmlTempoMap != null) {
             for (Iterator i = xmlTempoMap.elementIterator("Tempo");i.hasNext();) {
                 xmlTempo = (Element)i.next();
+                try {
                 dPulse = Double.parseDouble(xmlTempo.attributeValue("pulse"));
                 lFrame = (Long.parseLong(xmlTempo.attributeValue("frame")));
                 dBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("beats-per-minute"));
                 intNoteType = Integer.parseInt(xmlTempo.attributeValue("note-type"));
                 dEndBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("end-beats-per-minute"));     
-                try {
+                
                     strSQL = "INSERT INTO PUBLIC.ARDOUR_TEMPO (dPulse, intFrame, dBeatsPerMinute, intNoteType, dEndBeatsPerMinute) VALUES (" +
                         dPulse + ", " + lFrame + ", "+ dBeatsPerMinute + ", " + intNoteType + ", " + dEndBeatsPerMinute + " );";
                     int j = st.executeUpdate(strSQL);
@@ -633,6 +634,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             
                 } catch (java.sql.SQLException e) {
                     System.out.println("Error on SQL " + strSQL + e.toString());
+                    return -1;
+                } catch (java.lang.NullPointerException e) {
+                    System.out.println("Tempo map invalid " + e.toString());
                     return -1;
                 }
             }
