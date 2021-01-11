@@ -16,11 +16,13 @@ import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import static jprojecttranslator.jProjectReader_VCS.lInitialAudioOffset;
 import static jprojecttranslator.jProjectTranslator.ourDatabase;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import wavprocessor.WAVProcessor;
 
 /**
  * Project writer for AES31 projects.
@@ -65,58 +67,18 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         * Next step is to create an ADL file and write the output.
         */
         writeADLFile(fDestFile, st);
+        String strHTMLFile = new String(fDestFile.toString() + ".html");
         oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.ADLFileWritten"));
         writeAudioFiles ();
         oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.Finished"));
         System.out.println("AES31 writer thread finished");
-        HTMLFileWriter ourHTMLFileWriter = new HTMLFileWriter(fDestFile.toString() + ".html", ourDatabase);
+        HTMLFileWriter ourHTMLFileWriter = new HTMLFileWriter(strHTMLFile, ourDatabase);
         if (ourHTMLFileWriter.bIsValid) {
             ourHTMLFileWriter.writeFile();
         }
         return true;
     }
-    /* This method fills in the URI column in the SOURCE_INDEX table
-     * 
-     */
-    protected boolean writeURIs () {
 
-        int intSourceIndex;
-        String strName;
-        int i;
-        try {
-            strSQL = "SELECT intIndex, strDestFileName FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
-            st = conn.createStatement();
-            ResultSet rs = st.executeQuery(strSQL);
-            while (rs.next()) {
-                intSourceIndex = rs.getInt(1);
-                strName = URLDecoder.decode(rs.getString(2), "UTF-8");
-                File fTemp = new File(fDestFolder.toString(),strName);
-                String strTemp = fTemp.toString();
-                strTemp = strTemp.replaceAll("\\\\", "/");
-                if (!strTemp.startsWith("/")) {
-                    strTemp = "/" + strTemp;
-                }
-                URI uriTemp = new URI("file","localhost",strTemp,null);
-                // The new URI function will URL encode the string.
-                String strURI = "URL:" + uriTemp.toString();
-                // URL encode this string to keep bad characters from the database
-                strURI = URLEncoder.encode(strURI, "UTF-8");
-                strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strURI = \'" + strURI + "\' WHERE intIndex = " + intSourceIndex + ";";
-                i = st.executeUpdate(strSQL);
-                if (i == -1) {
-                    System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
-                }
-            }
-        } catch (java.sql.SQLException e) {
-            System.out.println("Error on SQL " + strSQL + e.toString());
-        } catch (java.io.UnsupportedEncodingException e) {
-            System.out.println("Error on decoding at " + strSQL + e.toString());
-        } catch (java.net.URISyntaxException e) {
-                    System.out.println("URI encoding exception  " + e.toString());
-                }
-        
-        return true;
-    }
     private boolean writeADLFile(File setDestFile, Statement st) {
         String strADLText = "<ADL>\n";
         String str12Space = "            ";
@@ -189,6 +151,8 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strURI = URLDecoder.decode(rs.getString(2), "UTF-8");
                 // It has been URL encoded to trap nasty characters from the database
                 strURI = URLDecoder.decode(strURI, "UTF-8");
+                strURI = strURI.replaceAll(".mp3", ".wav");
+                strURI = strURI.replaceAll(".m4a", ".wav");
                 strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
                 strTimeCodeOffset = getADLTimeString(rs.getLong(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
                 strFileDuration = "_";
@@ -570,18 +534,23 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         /** Now to write out the sound files
          * 
          */
-        
+        File fWrongAudioFolder = new File (fDestFolder,"WRONG_FORMAT");
         String strUMID;
         String strURI;
         File fDestFile;
         int intSourceIndex;
-        BWFProcessor tempBWFProcessor;
+        WAVProcessor tempWAVProcessor;
         ResultSet rs;
          try {
-             Iterator itr = lBWFProcessors.iterator();
+             strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = 0;";
+            int i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            Iterator itr = lWAVProcessors.iterator();
              while(itr.hasNext()) {
-                 tempBWFProcessor = (BWFProcessor)itr.next();
-                 strUMID = URLEncoder.encode(tempBWFProcessor.getBextOriginatorRef(), "UTF-8");
+                 tempWAVProcessor = (WAVProcessor)itr.next();
+                 strUMID = URLEncoder.encode(tempWAVProcessor.getBextOriginatorRef(), "UTF-8");
                  strSQL = "SELECT strURI FROM PUBLIC.SOURCE_INDEX WHERE strUMID = \'" + strUMID + "\';";
                  st = conn.createStatement();
                  rs = st.executeQuery(strSQL);
@@ -590,6 +559,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 strURI = rs.getString(1);
                 // It has been URL encoded to trap nasty characters from the database
                 strURI = URLDecoder.decode(strURI, "UTF-8");
+                System.out.println("First URI decode " + strURI);
                 // Strip off the leading URL: if it exists
                 if (strURI.startsWith("URL:")) {
                     strURI = strURI.substring(4, strURI.length());
@@ -598,43 +568,67 @@ public class jProjectWriter_AES31 extends jProjectWriter {
                 URI uriTemp = new URI(strURI);
                 // Use the getPath() method
                 strURI = URLDecoder.decode(uriTemp.getPath(), "UTF-8");
+                System.out.println("Second URI decode " + strURI);
                 // Decode the path and make it in to a file
                 fDestFile = new File(strURI);
                 // Check that the sample rate of the file is the same as the current project sample rate, if not write the file to a subfolder.
-                if (tempBWFProcessor.getSampleRate() != jProjectTranslator.intProjectSampleRate) {
-                    String strNewFolder = fDestFile.getParent() + "/WRONG_FORMAT";
+                if (tempWAVProcessor.getSampleRate() != jProjectTranslator.intProjectSampleRate) {
                     String strFileName = fDestFile.getName();
-                    File fNewFolder = new File(strNewFolder);
-                    if (fNewFolder.exists()) {
-                        fDestFile = new File(strNewFolder,strFileName);
+                    if (fWrongAudioFolder.exists()) {
+                        fDestFile = new File(fWrongAudioFolder,strFileName);
                     } else {
-                        if (fNewFolder.mkdir()) {
-                            fDestFile = new File(strNewFolder,strFileName);
+                        if (fWrongAudioFolder.mkdir()) {
+                            fDestFile = new File(fWrongAudioFolder,strFileName);
                         } else {
-                            System.out.println("Failed to create subfolder for file with wrong sample rate " + fNewFolder);
+                            System.out.println("Failed to create subfolder for file with wrong sample rate " + fWrongAudioFolder);
                         }
                     }
                     
                     
                 }
-                 if (fDestFile.exists()) {
-                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = intIndicatedFileSize WHERE strUMID = \'" + strUMID + "\';";
-                    //                    System.out.println("SQL " + strSQL);
-                    int i = st.executeUpdate(strSQL);
-                    if (i == -1) {
-                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
-                    }
-                    setChanged();
-                    notifyObservers();
-                    continue;
-                 }
-                 System.out.println("Starting audio file write on dest file " + strURI);
-                 oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.WritingAudioFile") + strURI);
-        
-                 tempBWFProcessor.addObserver(this);
-                 tempBWFProcessor.writeFile(fDestFile);
-                 tempBWFProcessor.deleteObserver(this);
+                if (fDestFile.exists()) {
+                   strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = intIndicatedFileSize WHERE strUMID = \'" + strUMID + "\';";
+                   //                    System.out.println("SQL " + strSQL);
+                   i = st.executeUpdate(strSQL);
+                   if (i == -1) {
+                       System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                   }
+                   setChanged();
+                   notifyObservers();
+                   continue;
+                }
+                System.out.println("Starting audio file write on dest file " + strURI);
+                oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.WritingAudioFile") + strURI);
+                if (jProjectTranslator.bNoBextChunkInWav && tempWAVProcessor.getFileType().equalsIgnoreCase("WAV")){
+                    tempWAVProcessor.setSkipBextChunkOnWrite(true);
+                }
+                if (jProjectTranslator.bNoBextChunkInW64 && (jProjectTranslator.intSave64BitFilesAs == 2 && tempWAVProcessor.getFileType().equalsIgnoreCase("RF64") || 
+                        jProjectTranslator.intSave64BitFilesAs != 1 && tempWAVProcessor.getFileType().equalsIgnoreCase("W64"))){
+                    tempWAVProcessor.setSkipBextChunkOnWrite(true);
+                }
+                if (jProjectTranslator.bNoBextChunkInRF64 && (jProjectTranslator.intSave64BitFilesAs == 1 && tempWAVProcessor.getFileType().equalsIgnoreCase("W64") || 
+                        jProjectTranslator.intSave64BitFilesAs != 2 && tempWAVProcessor.getFileType().equalsIgnoreCase("RF64"))){
+                    tempWAVProcessor.setSkipBextChunkOnWrite(true);
+                }
+                String strConversion = "";
+                if (jProjectTranslator.intSave64BitFilesAs == 1 && tempWAVProcessor.getFileType().equalsIgnoreCase("W64")) {
+                    strConversion = "RF64";
+                }
+                if (jProjectTranslator.intSave64BitFilesAs == 2 && tempWAVProcessor.getFileType().equalsIgnoreCase("RF64")) {
+                    strConversion = "W64";
+                }
+                tempWAVProcessor.addObserver(this);
+                if (strConversion.length() > 0) {
+                    tempWAVProcessor.writeFile(fDestFile, strConversion);
+                } else {
+                    tempWAVProcessor.writeFile(fDestFile);
+                }
+                tempWAVProcessor.deleteObserver(this);
              }
+             // All sound files which were found and could be read have been written , now look for compressed e.g. mp3 files.
+             extractMP3Files (fWrongAudioFolder);
+             extractM4AFiles (fWrongAudioFolder);
+             
              
 //             strSQL = "SELECT intIndex, strURI FROM PUBLIC.SOURCE_INDEX ;";
 //            st = conn.createStatement();
@@ -648,7 +642,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
 //                    continue;
 //                }
 //                System.out.println("Starting audio file write on  " + intSourceIndex + " dest file " + strURI);
-//                ((BWFProcessor)lBWFProcessors.get(intSourceIndex-1)).writeFile(fDestFile);
+//                ((WAVProcessor)lWAVProcessors.get(intSourceIndex-1)).writeFile(fDestFile);
 //            }
         } catch (java.sql.SQLException e) {
             System.out.println("Error on SQL " + strSQL + e.toString());
@@ -669,7 +663,7 @@ public class jProjectWriter_AES31 extends jProjectWriter {
         return "<b>AES31</b><br>"
                 + "This exporter will write an .adl (Audio Decision List) file which contains the EDL.<br>"
                 + "If the required audio files have been found these will also be copied to the same folder as the .adl file.<br>"
-                + "If the audio files are not BWAVs then a bext chunk will be added, this is mandatory for an AES31 project.<br>"
+                + "If the audio files are not BWAVs then a bext chunk will be added, this is mandatory for an AES31 project though this can be disabled in the preferences.<br>"
                 + "<br>";
     }
 }

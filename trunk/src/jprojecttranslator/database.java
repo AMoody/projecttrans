@@ -48,9 +48,9 @@ public class database {
              * This information is used to generate the SOURCE_INDEX section of the ADL file.
              */
             strSQL = "CREATE TABLE PUBLIC.SOURCE_INDEX (intIndex INTEGER NOT NULL," +
-                    "strType VARCHAR(4), strURI VARCHAR(256), strUMID VARCHAR(64), intLength BIGINT NOT NULL, strName VARCHAR(256),"
-                    + " intFileOffset BIGINT NOT NULL, intTimeCodeOffset BIGINT NOT NULL, strSourceFile VARCHAR(256),"
-                    + " strDestFileName VARCHAR(256), intCopied BIGINT DEFAULT 0, intIndicatedFileSize BIGINT DEFAULT 0,"
+                    "strType VARCHAR(14), strURI VARCHAR(2048), strUMID VARCHAR(64), intLength BIGINT NOT NULL, strName VARCHAR(2048),"
+                    + " intFileOffset BIGINT NOT NULL, intTimeCodeOffset BIGINT NOT NULL, strSourceFile VARCHAR(2048),"
+                    + " strDestFileName VARCHAR(2048), intCopied BIGINT DEFAULT 0, intIndicatedFileSize BIGINT DEFAULT 0,"
                     + " intSampleRate BIGINT DEFAULT 0, dDuration DOUBLE DEFAULT 0, intVCSInProject INT, intFileSize BIGINT,"
                     + " intArdourChannel INT, intChannels INT, " +
                     "PRIMARY KEY (intIndex));";
@@ -133,7 +133,7 @@ public class database {
             }
             // Create the PROJECT table
             strSQL = "CREATE TABLE PUBLIC.PROJECT (intIndex INTEGER NOT NULL," +
-                    "strTitle VARCHAR(256), strNotes VARCHAR(512), dtsCreated DATETIME, strOriginator VARCHAR(512), strClientData VARCHAR(512), " +
+                    "strTitle VARCHAR(256), strNotes VARCHAR(512), dtsCreated DATETIME, strOriginator VARCHAR(512), strClientData VARCHAR(512), intAudioOffset BIGINT," +
                     "PRIMARY KEY (intIndex));";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
@@ -154,7 +154,20 @@ public class database {
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL);
             }
-        } catch (java.lang.ClassNotFoundException e) {
+            // Create the ARDOUR_TEMPO table
+            strSQL = "CREATE TABLE PUBLIC.ARDOUR_TEMPO (dPulse DOUBLE NOT NULL, dNextPulse DOUBLE," +
+                    "intFrame BIGINT, dBeatsPerMinute DOUBLE, intNoteType INTEGER, dEndBeatsPerMinute DOUBLE, dAdjustedEndBeatsPerMinute DOUBLE);";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL);
+            }   
+            // Create the ARDOUR_TIME_SIGNATURE table
+            strSQL = "CREATE TABLE PUBLIC.ARDOUR_TIME_SIGNATURE (dPulse DOUBLE NOT NULL," +
+                    "intFrame BIGINT, strBBT VARCHAR(64), intBeat INTEGER NOT NULL, intNoteType INTEGER NOT NULL, intDivisionsPerBar INTEGER NOT NULL);";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL);
+            }         } catch (java.lang.ClassNotFoundException e) {
             System.out.println("Exception " + e.toString());
             System.exit(0);
         } catch (java.sql.SQLException e) {

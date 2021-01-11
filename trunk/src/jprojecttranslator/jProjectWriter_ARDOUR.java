@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 import org.dom4j.Element;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import wavprocessor.WAVProcessor;
 /**
  * Project writer for ARDOUR projects.
  * This will write an ARDOUR file and a set subfolders, some of these will contain BWAV files.
@@ -52,6 +53,8 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
         System.out.println("ARDOUR writer thread running");
         /** Ardour requires ID numbers for each element in the file, calculate these numbers first */
         updateDatabaseForArdour();
+        // Fill in the URI information
+        writeURIs ();        
         /**
          * Need to create a set of folders for the project, the file chooser could have returned a folder or file but ".ardour" will have been added to the end.
          * /projectname/interchange/
@@ -551,16 +554,22 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
      */
     protected boolean writeAudioFiles(File setAudioFolder) {
         File fAudioFolder = setAudioFolder;
+        File fWrongAudioFolder = new File (fAudioFolder,"WRONG_FORMAT");
         File fDestFile;
-        BWFProcessor tempBWFProcessor;
+        WAVProcessor tempWAVProcessor;
         ResultSet rs;
         String strUMID;
         String strDestFileName;
         try {
-            Iterator itr = lBWFProcessors.iterator();
+            strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = 0;";
+            int i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            Iterator itr = lWAVProcessors.iterator();
              while(itr.hasNext()) {
-                 tempBWFProcessor = (BWFProcessor)itr.next();
-                 strUMID = URLEncoder.encode(tempBWFProcessor.getBextOriginatorRef(), "UTF-8");
+                 tempWAVProcessor = (WAVProcessor)itr.next();
+                 strUMID = URLEncoder.encode(tempWAVProcessor.getBextOriginatorRef(), "UTF-8");
                  strSQL = "SELECT strDestFileName FROM PUBLIC.SOURCE_INDEX WHERE strUMID = \'" + strUMID + "\';";
                  st = conn.createStatement();
                  rs = st.executeQuery(strSQL);
@@ -572,17 +581,15 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                  fDestFile = new File (fAudioFolder,strDestFileName);
                  
                  // Check that the sample rate of the file is the same as the current project sample rate, if not write the file to a subfolder.
-                if (tempBWFProcessor.getSampleRate() != jProjectTranslator.intProjectSampleRate) {
-                    String strNewFolder = fDestFile.getParent() + "/WRONG_FORMAT";
+                if (tempWAVProcessor.getSampleRate() != jProjectTranslator.intProjectSampleRate) {
                     String strFileName = fDestFile.getName();
-                    File fNewFolder = new File(strNewFolder);
-                    if (fNewFolder.exists()) {
-                        fDestFile = new File(strNewFolder,strFileName);
+                    if (fWrongAudioFolder.exists()) {
+                        fDestFile = new File(fWrongAudioFolder,strFileName);
                     } else {
-                        if (fNewFolder.mkdir()) {
-                            fDestFile = new File(strNewFolder,strFileName);
+                        if (fWrongAudioFolder.mkdir()) {
+                            fDestFile = new File(fWrongAudioFolder,strFileName);
                         } else {
-                            System.out.println("Failed to create subfolder for file with wrong sample rate " + fNewFolder);
+                            System.out.println("Failed to create subfolder for file with wrong sample rate " + fWrongAudioFolder);
                         }
                     }
                     
@@ -591,7 +598,7 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 if (fDestFile.exists()) {
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = intIndicatedFileSize WHERE strUMID = \'" + strUMID + "\';";
                     //                    System.out.println("SQL " + strSQL);
-                    int i = st.executeUpdate(strSQL);
+                    i = st.executeUpdate(strSQL);
                     if (i == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                     }
@@ -601,11 +608,34 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                  }
                  System.out.println("Starting audio file write on dest file " + strDestFileName);
                  oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.WritingAudioFile") + strDestFileName);
-        
-                 tempBWFProcessor.addObserver(this);
-                 tempBWFProcessor.writeFile(fDestFile);
-                 tempBWFProcessor.deleteObserver(this);
+                if (jProjectTranslator.bNoBextChunkInWav && tempWAVProcessor.getFileType().equalsIgnoreCase("WAV")){
+                    tempWAVProcessor.setSkipBextChunkOnWrite(true);
+                }
+                if (jProjectTranslator.bNoBextChunkInW64 && (jProjectTranslator.intSave64BitFilesAs == 2 && tempWAVProcessor.getFileType().equalsIgnoreCase("RF64") || 
+                        jProjectTranslator.intSave64BitFilesAs != 1 && tempWAVProcessor.getFileType().equalsIgnoreCase("W64"))){
+                    tempWAVProcessor.setSkipBextChunkOnWrite(true);
+                }
+                if (jProjectTranslator.bNoBextChunkInRF64 && (jProjectTranslator.intSave64BitFilesAs == 1 && tempWAVProcessor.getFileType().equalsIgnoreCase("W64") || 
+                        jProjectTranslator.intSave64BitFilesAs != 2 && tempWAVProcessor.getFileType().equalsIgnoreCase("RF64"))){
+                    tempWAVProcessor.setSkipBextChunkOnWrite(true);
+                }
+                String strConversion = "";
+                if (jProjectTranslator.intSave64BitFilesAs == 1 && tempWAVProcessor.getFileType().equalsIgnoreCase("W64")) {
+                    strConversion = "RF64";
+                }
+                if (jProjectTranslator.intSave64BitFilesAs == 2 && tempWAVProcessor.getFileType().equalsIgnoreCase("RF64")) {
+                    strConversion = "W64";
+                }
+                tempWAVProcessor.addObserver(this);
+                if (strConversion.length() > 0) {
+                    tempWAVProcessor.writeFile(fDestFile, strConversion);
+                } else {
+                    tempWAVProcessor.writeFile(fDestFile);
+                }
+                tempWAVProcessor.deleteObserver(this);
              }
+             // All sound files which were found and could be read have been written , now look for compressed e.g. mp3 files.
+             extractMP3Files (fWrongAudioFolder);             
         } catch (java.sql.SQLException e) {
             System.out.println("Error on SQL " + strSQL + e.toString());
             return false;
@@ -846,8 +876,9 @@ public class jProjectWriter_ARDOUR extends jProjectWriter {
                 + "This exporter will write an Ardour project with all the required folders.<br>"
                 + "If the chosen folder does not have the same name as the name chosen for the Ardour project then a new subfolder will be created.<br>"
                 + "If the required audio files have been found these will also be copied to the correct subfolder.<br>"
-                + "If the audio files are not BWAVs then a bext chunk will be added.<br>"
+                + "If the audio files are not BWAVs then a bext chunk will be added though this can be disabled in the preferences.<br>"
                 + "Fades are written as region fades, gain automation will be written as mixer gain automation.<br>"
+                + "The Ardour file is written as version 2, this can be imported in later versions (up to v5, perhaps later versions too).<br>"
                 + "<br>";
     }
 }

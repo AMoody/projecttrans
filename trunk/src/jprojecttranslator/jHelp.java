@@ -56,7 +56,8 @@ public class jHelp extends javax.swing.JDialog {
         jEditorPane1.setContentType( "text/html" );
         jEditorPane1.setText("<html><h1>Project Translator</h1><br>"
                 + "Project Translator is an application for converting audio projects from one format to another.<br>"
-                + "This is version " + jProjectTranslator.strVersion + " build number " + jProjectTranslator.strBuild + "<br><hr>"
+                + "This is version " + jProjectTranslator.strVersion + " build number " + jProjectTranslator.strBuild + "<br>"
+                + "<p>W64 (Sony) and RF64 (EBU) 64 bit audio files are supported.<br></p><hr>"
                 + "<h1>Importers</h1><br>"
                 + "" + strReaders + "<br>"
                 + "<h1>Exporters</h1><br>"

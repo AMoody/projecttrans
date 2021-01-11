@@ -110,6 +110,8 @@ public class HTTPD extends NanoHTTPD {
                     "<li><a href=\"debug.html?Table=SYSTEM\" name=\"SYSTEM\">SYSTEM</a></li>\n" +
                     "<li><a href=\"debug.html?Table=TRACKS\" name=\"TRACKS\">TRACKS</a></li>\n" +
                     "<li><a href=\"debug.html?Table=ARDOUR_SOURCES\" name=\"ARDOUR_SOURCES\">ARDOUR_SOURCES</a></li>\n" +
+                    "<li><a href=\"debug.html?Table=ARDOUR_TEMPO\" name=\"ARDOUR_TEMPO\">ARDOUR_TEMPO</a></li>\n" +
+                    "<li><a href=\"debug.html?Table=ARDOUR_TIME_SIGNATURE\" name=\"ARDOUR_TIME_SIGNATURE\">ARDOUR_TIME_SIGNATURE</a></li>\n" +
                     "</ul></div>\n" +
                     "<div id=\"table\">" + strTableData +
                     "</div>\n</body></html>";

@@ -20,6 +20,7 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import wavprocessor.WAVProcessor;
 /**
  * Project Translator is used to convert audio projects from various formats to AES31 (adl) format.
  * The source file is read in to a database which closely matches the structure of an AES31 adl file.
@@ -42,12 +43,17 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     static database ourDatabase;
     protected static List listReaders = new ArrayList();
     protected static List listWriters = new ArrayList();
-    private static List listBWFProcessors = new ArrayList();
-    private static javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+    private static final List listWAVProcessors = new ArrayList();
+    private static final javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
     // These preferred values are set by the user
     public static int intPreferredSampleRate = 48000;
     public static double dPreferredFrameRate = 25;
     public static int intPreferredXfadeLength = 200;
+    public static boolean bNoBextChunkInWav = false;
+    public static boolean bNoBextChunkInW64 = false;
+    public static boolean bNoBextChunkInRF64 = false;
+    public static boolean bAlwaysUseWavExt = false;
+    public static int intSave64BitFilesAs = 0;
     // These project values are those of the currently loaded project
     public static int intProjectSampleRate = intPreferredSampleRate;
     public static double dProjectFrameRate = dPreferredFrameRate;
@@ -70,7 +76,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
     final static ResourceBundle rbLanguageBundle = ResourceBundle.getBundle("jprojecttranslator/Bundle"); 
     final static java.text.MessageFormat formatter = new java.text.MessageFormat("");
     protected static String strBuild;
-    protected static final String strVersion = "0.1"; 
+    protected static final String strVersion = "0.2"; 
     public static java.text.NumberFormat nf = java.text.NumberFormat.getInstance();
     
     /**
@@ -133,11 +139,11 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             try {
                 Connection conn = ourDatabase.getConnection();
                 Statement st = conn.createStatement();
-                if (arg instanceof BWFProcessor) {
+                if (arg instanceof WAVProcessor) {
                     // A file is being written, update the progress bar
-                    BWFProcessor tempBWFProcessor = (BWFProcessor)arg;
-                    String strUMID = URLEncoder.encode(tempBWFProcessor.getBextOriginatorRef(), "UTF-8");  
-                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = " + tempBWFProcessor.getLByteWriteCounter() +  " WHERE strUMID = \'" + strUMID + "\';";
+                    WAVProcessor tempWAVProcessor = (WAVProcessor)arg;
+                    String strUMID = URLEncoder.encode(tempWAVProcessor.getBextOriginatorRef(), "UTF-8");  
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = " + tempWAVProcessor.getLByteWriteCounter() +  " WHERE strUMID = \'" + strUMID + "\';";
 //                    System.out.println("SQL " + strSQL);
                     int i = st.executeUpdate(strSQL);
                     if (i == -1) {
@@ -145,6 +151,13 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                     }
                     
 
+                } else {
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intCopied = " + ((jProjectWriter)o).getLByteWriteCounter() +  " WHERE strUMID = \'" + ((jProjectWriter)o).getCurrentUMID() + "\';";
+                    System.out.println("SQL " + strSQL);
+                    int i = st.executeUpdate(strSQL);
+                    if (i == -1) {
+                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    }
                 }
                 // Update the display
                 strSQL = "SELECT SUM(intCopied), SUM(intIndicatedFileSize) FROM PUBLIC.SOURCE_INDEX;";
@@ -154,6 +167,11 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 long lPercent, lCopied, lIndicated;
                 lCopied = rs.getLong(1);
                 lIndicated = rs.getLong(2);
+                strSQL = "SELECT SUM(intFileSize) FROM PUBLIC.SOURCE_INDEX WHERE intIndicatedFileSize = 0;";
+                st = conn.createStatement();
+                rs = st.executeQuery(strSQL);
+                rs.next();
+                lIndicated = lIndicated + rs.getLong(1);
                 if (lCopied < lIndicated && lIndicated > 0) {
                     lPercent =  100*lCopied/lIndicated;
 
@@ -462,6 +480,27 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         usersIniFile.WriteString("General", "CurrentPath", fPath.toString());
         usersIniFile.WriteString("General", "LastFileOpenFilter", strLastFileOpenFilter);
         usersIniFile.WriteString("General", "LastFileSaveAsFilter", strLastFileSaveAsFilter);
+        if (bNoBextChunkInWav) {
+            usersIniFile.WriteInteger("General", "NoBextChunkInWav", 1);
+        } else {
+            usersIniFile.WriteInteger("General", "NoBextChunkInWav", 0);
+        }
+        if (bNoBextChunkInW64) {
+            usersIniFile.WriteInteger("General", "NoBextChunkInW64", 1);
+        } else {
+            usersIniFile.WriteInteger("General", "NoBextChunkInW64", 0);
+        }
+        if (bNoBextChunkInRF64) {
+            usersIniFile.WriteInteger("General", "NoBextChunkInRF64", 1);
+        } else {
+            usersIniFile.WriteInteger("General", "NoBextChunkInRF64", 0);
+        }
+        if (bAlwaysUseWavExt) {
+            usersIniFile.WriteInteger("General", "AlwaysUseWavExt", 1);
+        } else {
+            usersIniFile.WriteInteger("General", "AlwaysUseWavExt", 0);
+        }
+        usersIniFile.WriteInteger("General", "Save64BitFilesAs", intSave64BitFilesAs);
         usersIniFile.UpdateFile();
         System.exit(0);        
     }
@@ -501,7 +540,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
             if (fc.getFileFilter().getDescription().equalsIgnoreCase(tempProjectReader.getFileFilter().getDescription())) {
                 System.out.println("A suitable file reader was found");
                 tempProjectReader.addObserver(this);
-                tempProjectReader.load(ourDatabase, listBWFProcessors, fc.getSelectedFile(),this);
+                tempProjectReader.load(ourDatabase, listWAVProcessors, fc.getSelectedFile(),this);
             }
         }
     }//GEN-LAST:event_menuOpen
@@ -579,7 +618,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                     fPath = fc.getSelectedFile().getParentFile();
                 }
                 tempProjectWriter.addObserver(this);
-                tempProjectWriter.save(ourDatabase, listBWFProcessors, file, this);
+                tempProjectWriter.save(ourDatabase, listWAVProcessors, file, this);
                 // tempProjectWriter.deleteObserver(this);
             }
         }
@@ -610,7 +649,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         dlgLicence.setText("<html><h2>Project Translator</h2><br>"
                 + "A program to translate audio editing projects from "
                 + "one format to another. "
-                + "<br>Copyright © 2011-2016  Arthur Moody"
+                + "<br>Copyright © 2011-2020  Arthur Moody"
                 + "<br>Source code is available from here, https://sourceforge.net/projects/projecttrans"
                 + "<br><br>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by "
                 + "the Free Software Foundation, either version 3 of the License, or (at your option) any later version."
@@ -628,16 +667,16 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 + "<br>http://sourceforge.net/projects/openforecast"
                 + "<br><br><b>dom4j</b>"
                 + "<br>BSD style license"
-                + "<br>http://dom4j.sourceforge.net/dom4j-1.6.1/license.html"
+                + "<br>https://github.com/dom4j/dom4j/blob/dom4j_1_6_1/LICENSE.txt"
                 + "<br><br><b>joda-time</b>"
                 + "<br>Apache licence"
                 + "<br>http://joda-time.sourceforge.net/license.html"
                 + "<br><br><b>NanoHTTPD</b>"
                 + "<br>Modified BSD licence"
                 + "<br>Copyright © 2012-2013 by Paul S. Hawke, 2001,2005-2013 by Jarno Elonen, 2010 by Konstantinos Togias"
-                + "<br>http://nanohttpd.com/"
+                + "<br>https://github.com/NanoHttpd/nanohttpd/blob/master/LICENSE.md/"
                 + "<br><br><b>Drop frame timecode calculations.</b>"
-                + "<br>Code by David Heidelberger (http://www.davidheidelberger.com), adapted from Andrew Duncan's work (http://www.andrewduncan.ws).</html>");
+                + "<br>Code by David Heidelberger (http://www.davidheidelberger.com), adapted from Andrew Duncan's work (http://andrewduncan.net).</html>");
         dlgLicence.setLocationRelativeTo(null);
         dlgLicence.setVisible(true);
     }//GEN-LAST:event_menuLicence
@@ -701,7 +740,19 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         fPath = new File( usersIniFile.ReadString("General","CurrentPath",System.getProperty("user.home")) );
         strLastFileOpenFilter = usersIniFile.ReadString("General","LastFileOpenFilter","");
         strLastFileSaveAsFilter = usersIniFile.ReadString("General","LastFileSaveAsFilter","");
-        
+        if (usersIniFile.ReadInteger("General","NoBextChunkInWav",0) > 0) {
+            bNoBextChunkInWav = true;
+        }
+        if (usersIniFile.ReadInteger("General","NoBextChunkInW64",0) > 0) {
+            bNoBextChunkInW64 = true;
+        }
+        if (usersIniFile.ReadInteger("General","NoBextChunkInRF64",0) > 0) {
+            bNoBextChunkInRF64 = true;
+        }        
+        if (usersIniFile.ReadInteger("General","AlwaysUseWavExt",0) > 0) {
+            bAlwaysUseWavExt = true;
+        }        
+        intSave64BitFilesAs = usersIniFile.ReadInteger("General","Save64BitFilesAs",0);
         if (intHTTPPort > 0) {
             try {
                 HTTPD oWebServer = new HTTPD(intHTTPPort);
@@ -718,6 +769,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         listReaders.add(new jProjectReader_AES31());
         listWriters.add(new jProjectWriter_AES31());
         listWriters.add(new jProjectWriter_ARDOUR());
+        listWriters.add(new jProjectWriter_ROSEGARDEN());
         
         
         /*
@@ -748,7 +800,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 , rbLanguageBundle.getString("jProjectTranslator.Table.Status"), rbLanguageBundle.getString("jProjectTranslator.Table.Duration"), rbLanguageBundle.getString("jProjectTranslator.Table.SampleRate")};
         Object[][] data = new Object [][] { };
         protected database ourDatabase;
-        protected String strSQL;
+        protected String strSQL, strChannels;
         protected Statement st;
         protected Connection conn;
         protected ResultSet rs;
@@ -801,14 +853,22 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
                 data = new Object [rs.getInt(1)][5];
                 long lDuration, lSampleRate;
                 if (rs.getInt(1) > 0){
-                    strSQL = "SELECT strName, strSourceFile, intIndicatedFileSize, intSampleRate, dDuration FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+                    strSQL = "SELECT strName, strSourceFile, intIndicatedFileSize, intSampleRate, dDuration, strType, intChannels FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
                     rs = st.executeQuery(strSQL);
                     while (rs.next()) {
                         data[row][0] = URLDecoder.decode(rs.getString(1), "UTF-8");
                         data[row][1] = URLDecoder.decode(rs.getString(2), "UTF-8");
                         lDuration = rs.getLong(3);
-                        if (lDuration > 0) {
-                            data[row][2] = rbLanguageBundle.getString("jProjectTranslator.Found");
+                        strChannels = "";
+                       
+                        if (lDuration > 0 || rs.getString(6).equalsIgnoreCase("mp3")) {
+                            if (rs.getInt(7) == 1) {
+                                strChannels = "1 " + rbLanguageBundle.getString("jProjectTranslator.Table.ChannelSing");
+                            }
+                            if (rs.getInt(7) > 1) {
+                                strChannels = "" + rs.getInt(7) + " " + rbLanguageBundle.getString("jProjectTranslator.Table.ChannelPlur");
+                            }                             
+                            data[row][2] = rbLanguageBundle.getString("jProjectTranslator.Found") + "  " + rs.getString(6) + " " + strChannels;
                         } else  {
                             data[row][2] = rbLanguageBundle.getString("jProjectTranslator.NotFound");
                         }

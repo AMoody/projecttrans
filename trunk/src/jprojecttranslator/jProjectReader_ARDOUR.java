@@ -14,6 +14,7 @@ import java.util.*;
 import org.dom4j.Element;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import wavprocessor.WAVProcessor;
 
 /**
  * Project reader for Ardour projects.
@@ -95,10 +96,11 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      */
     protected int loadSoundFiles(Statement st, File fAudioFolder) {
         try {
-            strSQL = "SELECT intIndex, strName, strSourceFile FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+            strSQL = "SELECT intIndex, strName, strSourceFile, strDestFileName FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(strSQL);
-            String strSourceFile, strName, strUMID;
+            ResultSet rs1;
+            String strSourceFile, strName, strUMID, strEncodedSourceFile, strDestFileName, strType;
             File fLocalSourceFile;
             long lIndicatedFileSize, lSampleRate, lTimeCodeOffset;
             double dDuration, dSourceSamples;
@@ -107,7 +109,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 // Loop through the SOURCE_INDEX table and try to find out more about each file by reading data from the actual sound file (if we can find it)
                 intSourceIndex = rs.getInt(1);
                 strName = URLDecoder.decode(rs.getString(2), "UTF-8");
-                strSourceFile = URLDecoder.decode(rs.getString(3), "UTF-8");
+                strEncodedSourceFile = rs.getString(3);
+                strSourceFile = URLDecoder.decode(strEncodedSourceFile, "UTF-8");
+                strDestFileName = URLDecoder.decode(rs.getString(4), "UTF-8");
                 fLocalSourceFile = new File(fAudioFolder, strSourceFile);
                 if (fLocalSourceFile.exists()) {
                     System.out.println("Source file " + fLocalSourceFile + " found");
@@ -121,44 +125,89 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                         continue;
                     }
                 }
-                tempBWFProc = new BWFProcessor();
-                tempBWFProc.setSrcFile(fLocalSourceFile);
-                tempBWFProc.setMultipart(false);
-                if (fLocalSourceFile.exists() && fLocalSourceFile.canRead() && tempBWFProc.readFile(0,fLocalSourceFile.length())) {
-                    lIndicatedFileSize = tempBWFProc.getIndicatedFileSize();
-                    lSampleRate = tempBWFProc.getSampleRate();
-                    dDuration =  tempBWFProc.getDuration();
-                    intChannels = tempBWFProc.getNoOfChannels();
-                    dSourceSamples = tempBWFProc.getNoOfSamples()/intChannels;
+                tempWAVProc = new WAVProcessor();
+                tempWAVProc.setSrcFile(fLocalSourceFile);
+                tempWAVProc.setMultipart(false);
+                if (fLocalSourceFile.exists() && fLocalSourceFile.canRead() && tempWAVProc.readFile(0,fLocalSourceFile.length())) {
+                    lIndicatedFileSize = tempWAVProc.getIndicatedFileSize();
+                    lSampleRate = tempWAVProc.getSampleRate();
+                    dDuration =  tempWAVProc.getDuration();
+                    intChannels = tempWAVProc.getNoOfChannels();
+                    dSourceSamples = tempWAVProc.getNoOfSamples()/intChannels;
+                    strType = tempWAVProc.getFileType() + " " + tempWAVProc.getBitsPerSample() + " bit ";
+                    if (tempWAVProc.hasBextChunk()) {
+                        strType = "B-" + strType;
+                    }
+                    // Need to update the destination file extension, wav, rf64 or w64 but avoid name clashes, e.g. you could have three different files, test.wav, test.rf64, test.w64
+                    if (jProjectTranslator.intSave64BitFilesAs == 0){
+                        // Keep original 64 bit format
+                        if (tempWAVProc.getFileType().equalsIgnoreCase("rf64") && !strDestFileName.toLowerCase().endsWith(".wav")) {
+                            // RF64 file without wav extension, need to add it.
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                        if (tempWAVProc.getFileType().equalsIgnoreCase("w64") && jProjectTranslator.bAlwaysUseWavExt && !strDestFileName.toLowerCase().endsWith(".wav")) {
+                            // W64 file doesn't end in .wav but user always wants to always have .wav at end
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                    }
+                    if (tempWAVProc.getFileType().equalsIgnoreCase("wav")) {
+                        if (!strDestFileName.toLowerCase().endsWith(".wav")) {
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                    }
+                    // Always save as RF64
+                    if (jProjectTranslator.intSave64BitFilesAs == 1) {
+                            if (!strDestFileName.toLowerCase().endsWith(".wav")) {
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                    }
+                    // Always save w64
+                    if (!jProjectTranslator.bAlwaysUseWavExt && jProjectTranslator.intSave64BitFilesAs == 2 && tempWAVProc.getFileType().equalsIgnoreCase("RF64") && !strDestFileName.toLowerCase().endsWith(".w64")) {
+                        strDestFileName = strDestFileName + ".w64";
+                    } 
+                    if (jProjectTranslator.bAlwaysUseWavExt && jProjectTranslator.intSave64BitFilesAs == 2 && !strDestFileName.toLowerCase().endsWith(".wav")) {
+                        strDestFileName = strDestFileName + ".wav";
+                    }  
+                    strDestFileName = URLEncoder.encode(strDestFileName, "UTF-8");
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + ", "
-                            + "intChannels = " + intChannels + ", intLength = " + dSourceSamples + " "
-                            + "WHERE intIndex = " + intSourceIndex + ";";
+                            + "intChannels = " + intChannels + ", intLength = " + dSourceSamples + ", strDestFileName = \'"
+                            + strDestFileName + "\', strType = \'" + strType + "\' WHERE intIndex = " + intSourceIndex + ";";
                     int i = st.executeUpdate(strSQL);
                     if (i == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                     }
-                    if (tempBWFProc.getBextTitle().length() == 0) {
-                        tempBWFProc.setBextTitle(strName);
+                    if (tempWAVProc.getBextTitle().length() == 0) {
+                        tempWAVProc.setBextTitle(strName);
                     }
-                    if (tempBWFProc.getBextOriginatorRef().length() > 0) {
-                        strUMID = URLEncoder.encode(tempBWFProc.getBextOriginatorRef(), "UTF-8");
-                        strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strUMID = \'" + strUMID + "\' WHERE intIndex = " + intSourceIndex + ";";
-                        i = st.executeUpdate(strSQL);
-                        if (i == -1) {
-                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
-                        }
+                    if (tempWAVProc.getBextOriginatorRef().length() > 0) {
+                        // The UMID in the audio file should be unique, however Ardour sometimes creates multiple files with the same UMID.
+                        // This occurs if you import an audio file with two or more channels, Ardour splits this in to multiple mono files which all have the same UMID, need to fix this here.
+                        strUMID = URLEncoder.encode(tempWAVProc.getBextOriginatorRef(), "UTF-8");
+                        strSQL = "SELECT COUNT(*) FROM PUBLIC.SOURCE_INDEX WHERE strUMID = \'" + strUMID + "\' AND strSourceFile <> \'" + strEncodedSourceFile + "\';";
+                        rs1 = st.executeQuery(strSQL);
+                        if (rs1.next() && rs1.getInt(1) > 0) {
+                            strUMID = jProjectTranslator.getNewUSID();
+                            tempWAVProc.setBextOriginatorRef(strUMID);
+                            strUMID = URLEncoder.encode(strUMID, "UTF-8");
+                        } 
                     } else {
-                        strUMID = jProjectTranslator.getNewUSID();
-                        tempBWFProc.setBextOriginatorRef(strUMID);
-                        strUMID = URLEncoder.encode(strUMID, "UTF-8");
-                        strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strUMID = \'" + strUMID + "\' WHERE intIndex = " + intSourceIndex + ";";
-                        i = st.executeUpdate(strSQL);
-                        if (i == -1) {
-                            System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                        strSQL = "SELECT strUMID FROM PUBLIC.SOURCE_INDEX WHERE strSourceFile = \'" + strEncodedSourceFile + "\';";
+                        rs1 = st.executeQuery(strSQL);
+                        if (rs1.next() && rs1.getString(1).length() > 0) {
+                            strUMID = URLDecoder.decode(rs1.getString(1), "UTF-8");
+                        } else {
+                            strUMID = jProjectTranslator.getNewUSID();
                         }
+                        tempWAVProc.setBextOriginatorRef(strUMID);
+                        strUMID = URLEncoder.encode(strUMID, "UTF-8");
                     }
-                    if (tempBWFProc.getBextTimeCodeOffset() > 0) {
-                        lTimeCodeOffset = tempBWFProc.getBextTimeCodeOffset();
+                    strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strUMID = \'" + strUMID + "\' WHERE intIndex = " + intSourceIndex + ";";
+                    i = st.executeUpdate(strSQL);
+                    if (i == -1) {
+                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    }                    
+                    if (tempWAVProc.getBextTimeCodeOffset() > 0) {
+                        lTimeCodeOffset = tempWAVProc.getBextTimeCodeOffset();
                         System.out.println("Timecode ref from source file is " +  lTimeCodeOffset);
                         strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intTimeCodeOffset = " + lTimeCodeOffset + " WHERE intIndex = " + intSourceIndex + ";";
                         i = st.executeUpdate(strSQL);
@@ -167,7 +216,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                         }
                     }
                     
-                    lBWFProcessors.add(tempBWFProc);
+                    lWAVProcessors.add(tempWAVProc);
                     intSoundFilesLoaded++;
                     setChanged();
                     notifyObservers();
@@ -247,6 +296,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         Element xmlDiskStream;
         Element xmlRoutes;
         Element xmlRoute;
+        Element xmlTempoMap;
         if (xmlDiskStreams != null) {
             for (Iterator i = xmlDiskStreams.elementIterator("AudioDiskstream");i.hasNext();) {
                 xmlDiskStream = (Element)i.next();
@@ -291,6 +341,8 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             System.out.println("Automation data in FADER_LIST_T needs to be merged");
             mergeAutomationData(st);
         }
+        xmlTempoMap = xmlRoot.element("TempoMap");
+        parseTempoData(xmlTempoMap, st);
         return true;
     }
     protected void mergeAutomationData (Statement st) {
@@ -476,9 +528,16 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      */
     protected int parseDiskStreamDataFromRoute(Element xmlRoute, Statement st) {
         String strType = "";
+        String strDirection = "";
         strType = xmlRoute.attributeValue("default-type");
         if (strType != null && strType.indexOf("midi") > -1) {
             return -1;
+        }
+        // In Ardour v6 the routes element has changed format and now has a version number
+        String strVersion = xmlRoute.attributeValue("version");
+        int intVersion = 0;
+        if (strVersion != null) {
+            intVersion = Integer.parseInt(strVersion);
         }
         // For some reason Ardour 3 sometimes uses the id number from the route and sometimes uses the id from the child element Diskstream so we need to load both.
         int intAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("id"));
@@ -486,14 +545,41 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         String strName = xmlRoute.attributeValue("name");
         int intChannelOffset = 1;
         int intChannels = 1;
-        if (xmlRoute.element("Diskstream") != null) {
-            intChannels = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("channels"));
+        if (intVersion < 6000 ) {
+            if (xmlRoute.element("Diskstream") != null) {
+                intChannels = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("channels"));
+            } else {
+                return -1;
+            }
+            if (xmlRoute.element("Diskstream") != null) {
+                intAltAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
+            }            
         } else {
-            return -1;
+            Element xmlIO;
+            Element xmlPort;
+            intChannels = 0;
+            for (Iterator i = xmlRoute.elementIterator("IO");i.hasNext();) {
+                xmlIO = (Element)i.next();
+                strDirection = xmlIO.attributeValue("direction");
+                if (strDirection != null && strDirection.indexOf("Input") > -1) {
+                    for (Iterator j = xmlIO.elementIterator("Port");j.hasNext();) {
+                        xmlPort = (Element)j.next();
+                        strType = xmlPort.attributeValue("type");
+                        if (strType != null && strType.indexOf("audio") > -1) {
+                            intChannels++;
+                        }
+                    }                    
+                }
+
+                
+            }
+            if (xmlRoute.attributeValue("audio-playlist") != null) {
+                intAltAudioDiskstreamIndex = Integer.parseInt(xmlRoute.attributeValue("audio-playlist"));
+            } else {
+                intAltAudioDiskstreamIndex = 0;
+            }           
         }
-        if (xmlRoute.element("Diskstream") != null) {
-            intAltAudioDiskstreamIndex = Integer.parseInt(xmlRoute.element("Diskstream").attributeValue("id"));
-        }
+
         try {
             strName = URLEncoder.encode(strName, "UTF-8");
             strSQL = "SELECT SUM(intChannels) FROM PUBLIC.TRACKS;";
@@ -516,6 +602,70 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             return -1;
         }        
         return 0;
+    }
+    /**
+     * This method parses tempo and time signature data from the ardour file and puts it in the data base
+     * @param xmlTempoMap
+     * @param st
+     * @return 
+     */
+    protected int parseTempoData(Element xmlTempoMap, Statement st){
+        Element xmlTempo, xmlMeter;
+        int intNoteType, intDivisionsPerBar, intBeat ;
+        long lFrame;
+        double dBeatsPerMinute, dEndBeatsPerMinute, dPulse;
+        String strBBT = "";
+        if (xmlTempoMap != null) {
+            for (Iterator i = xmlTempoMap.elementIterator("Tempo");i.hasNext();) {
+                xmlTempo = (Element)i.next();
+                dPulse = Double.parseDouble(xmlTempo.attributeValue("pulse"));
+                lFrame = (Long.parseLong(xmlTempo.attributeValue("frame")));
+                dBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("beats-per-minute"));
+                intNoteType = Integer.parseInt(xmlTempo.attributeValue("note-type"));
+                dEndBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("end-beats-per-minute"));     
+                try {
+                    strSQL = "INSERT INTO PUBLIC.ARDOUR_TEMPO (dPulse, intFrame, dBeatsPerMinute, intNoteType, dEndBeatsPerMinute) VALUES (" +
+                        dPulse + ", " + lFrame + ", "+ dBeatsPerMinute + ", " + intNoteType + ", " + dEndBeatsPerMinute + " );";
+                    int j = st.executeUpdate(strSQL);
+                    if (j == -1) {
+                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    }
+            
+                } catch (java.sql.SQLException e) {
+                    System.out.println("Error on SQL " + strSQL + e.toString());
+                    return -1;
+                }
+            }
+            for (Iterator i = xmlTempoMap.elementIterator("Meter");i.hasNext();) {
+                xmlMeter = (Element)i.next();
+                dPulse = Double.parseDouble(xmlMeter.attributeValue("pulse"));
+                lFrame = (Long.parseLong(xmlMeter.attributeValue("frame")));
+                strBBT = xmlMeter.attributeValue("bbt");
+                try {
+                    strBBT = URLEncoder.encode(strBBT, "UTF-8");
+                } catch (java.io.UnsupportedEncodingException e) {
+                    System.out.println("Error on while trying to encode string" );
+                    
+                }
+                intBeat = Integer.parseInt(xmlMeter.attributeValue("beat"));
+                intNoteType = Integer.parseInt(xmlMeter.attributeValue("note-type"));
+                intDivisionsPerBar = Integer.parseInt(xmlMeter.attributeValue("divisions-per-bar"));     
+                try {
+                    strSQL = "INSERT INTO PUBLIC.ARDOUR_TIME_SIGNATURE (dPulse, intFrame, strBBT, intBeat, intNoteType, intDivisionsPerBar) VALUES (" +
+                        dPulse + ", " + lFrame + ", \'" + strBBT + "\', " + intBeat + ", " + intNoteType + ", " + intDivisionsPerBar + " );";
+                    int j = st.executeUpdate(strSQL);
+                    if (j == -1) {
+                        System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                    }
+            
+                } catch (java.sql.SQLException e) {
+                    System.out.println("Error on SQL " + strSQL + e.toString());
+                    return -1;
+                }
+            }            
+        }        
+        
+        return 1;
     }
     /**
      * 
@@ -611,7 +761,50 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             
             
             
-        }        
+        }  
+       
+        // Still don't have any automation data, it could be an Ardour 6 file where everything can be automated so the file structure changed.
+        Element xmlProcessor, xmlAutomationList, xmlEvents;
+        String strType, strAutomationID;
+        for (Iterator i = xmlRoute.elementIterator("Processor");i.hasNext();) {
+            xmlProcessor = (Element)i.next();
+            strType = xmlProcessor.attributeValue("type");
+            if (strType != null && strType.indexOf("amp") > -1 && xmlProcessor.element("Automation") != null) {
+                for (Iterator j = xmlProcessor.element("Automation").elementIterator("AutomationList");j.hasNext();) {
+                    xmlAutomationList = (Element)j.next();
+                    strAutomationID = xmlAutomationList.attributeValue("automation-id");
+                    if (strAutomationID != null && strAutomationID.indexOf("gain") > -1 && xmlAutomationList.element("events") != null) {
+                        xmlEvents = xmlAutomationList.element("events");
+                        System.out.println("Found Ardour 6 automation data on disk stream ID  " + intAudioDiskstreamIndex);
+                        // Found automation data for this track, need to check that there is not already region gain data
+                        strSQL = "SELECT COUNT(*) FROM PUBLIC.FADER_LIST,PUBLIC.TRACKS WHERE "
+                                + "PUBLIC.FADER_LIST.intTrack = PUBLIC.TRACKS.intChannelOffset AND "
+                                + "(PUBLIC.TRACKS.intIndex = " + intAudioDiskstreamIndex + " OR PUBLIC.TRACKS.intAltIndex = " + intAudioDiskstreamIndex + ");";
+                        try {
+                            ResultSet rs = st.executeQuery(strSQL);
+                            rs.next();
+                            if (!(rs.wasNull()) &&  rs.getInt(1) == 0) {
+                                // This data can be imported straight in to the FADER_LIST table
+                                importEventData(xmlEvents, st, "PUBLIC.FADER_LIST", intAudioDiskstreamIndex);
+
+                            } else {
+                                // FADER_LIST_T will have the track automation data
+                                importEventData(xmlEvents, st, "PUBLIC.FADER_LIST_T", intAudioDiskstreamIndex);
+
+                                intMergeReqd = 1;
+                                System.out.println("Automation data on disk stream ID  " + intAudioDiskstreamIndex + " will need to be merged");
+                            }
+                        } catch (java.sql.SQLException e) {
+                            System.out.println("Error on SQL " + strSQL + e.toString());
+                        }
+                        return intMergeReqd;
+            
+                        
+                    }
+                }
+            }
+        }
+        // No automation data found
         return -1;
         
     }
@@ -954,25 +1147,35 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             return;
         }
         String strName = xmlSource.attributeValue("name");
-        String strFileName = strName;
+        String strSourceFile = strName;
         String strIndex = xmlSource.attributeValue("id");
         int intIndex = Integer.parseInt(strIndex);
         String strNameLowerCase = strName.toLowerCase();
-        int intEnd = strNameLowerCase.lastIndexOf(".wav");
+//        int intEnd = strNameLowerCase.lastIndexOf(".");
+        int intEnd = strNameLowerCase.indexOf(".");
+//        if (intEnd == -1) {
+//            intEnd = strNameLowerCase.lastIndexOf(".w64");
+//        }
+//        if (intEnd == -1) {
+//            intEnd = strNameLowerCase.lastIndexOf(".rf64");
+//        }
         if (intEnd == -1) {
             intEnd = strName.length();
         }
         strName = strName.substring(0, intEnd);
-        strName = strName.replaceAll("[\\/:*?\"<>|%]","_");
-        String strURI = strName + ".wav";
+        strName = strName.replaceAll("[\\/:*?\"<>|%&]","_");
+
         int intChannel = Integer.parseInt(xmlSource.attributeValue("channel"));
 //        String strURI = ".wav";
         try {
             strName = URLEncoder.encode(strName, "UTF-8");
-//            strURI = URLEncoder.encode(strURI, "UTF-8");
-            strFileName = URLEncoder.encode(strFileName, "UTF-8");
+            String strDestFile = strSourceFile;
+            strDestFile = strDestFile.replaceAll("[\\/:*?\"<>|%&]","_");
+            strDestFile = URLEncoder.encode(strDestFile, "UTF-8");
+            strSourceFile = URLEncoder.encode(strSourceFile, "UTF-8");
             strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strName, strSourceFile, intCopied, intLength, intFileOffset, intTimeCodeOffset, intArdourChannel, strUMID) VALUES (" +
-                intIndex + ", \'F\',\'" + strURI + "\', \'" + strName + "\', \'" + strFileName + "\', 0, 0, 0, 0," + intChannel + ", \'\') ;";
+                intIndex + ", \'F\',\'" + strDestFile + "\', \'" + strName + "\', \'" + strSourceFile + "\', 0, 0, 0, 0," + intChannel + ", \'\') ;";
+            System.out.println(strSQL);
             int i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -1106,6 +1309,8 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                 + "The default audio file format in Ardour is 32 bit float which is not always supported by other audio editors so you "
                 + "should consider changing this in your ardour project. "
                 + "Regions lying under other opaque regions are split into independent event list entries in the AES31 project.<br>"
-                + "Both Ardour 2 and Ardour 3 file formats are supported. Midi files, tracks and regions are ignored because they are not supported by AES31.<br>";
+                + "Ardour 2, 3, 4 and 5 file formats are supported (internal format up to 3002). Midi files, tracks and regions are ignored because they are not supported by AES31.<br>"
+                + "This version includes beta support for Ardour 6 files.<br>";
+                        
     }
 }
