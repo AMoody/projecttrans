@@ -115,7 +115,7 @@ public class HTMLFileWriter {
                 "</tr>";
         try {
             st = conn.createStatement();  
-            strSQL = "SELECT strDestFileName, intLength, strUMID, intSampleRate FROM PUBLIC.SOURCE_INDEX;";
+            strSQL = "SELECT strDestFileName, intLength, strUMID, intSampleRate, strType FROM PUBLIC.SOURCE_INDEX;";
             ResultSet rs = st.executeQuery(strSQL);
             while (rs.next()) {
                 String strDestFileName = URLDecoder.decode(rs.getString(1), "UTF-8");
@@ -127,9 +127,9 @@ public class HTMLFileWriter {
                 String strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
                 int intSampleRate = rs.getInt(4);
                 String strStatus;
-                if (intSampleRate > 0) {
-                    strStatus = "Found";
-                    if (rs.getLong(2) > 2) {
+                if (intSampleRate > 0 || rs.getString(5).equalsIgnoreCase("mp3")) {
+                    strStatus = "Found " + rs.getString(5);
+                    if (rs.getLong(2) > 2 && intSampleRate > 0) {
                         // Update the duration using the actual sample rate for the file
                         strDuration = jProjectTranslator.getTimeString(rs.getLong(2)/intSampleRate);
                         // strDuration = getADLTimeString(rs.getLong(2), intSampleRate, jProjectTranslator.dPreferredFrameRate);

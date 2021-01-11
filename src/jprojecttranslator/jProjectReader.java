@@ -7,18 +7,20 @@ import java.util.Observable;
 import java.util.*;
 import java.io.*;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.*;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import wavprocessor.WAVProcessor;
 /**
  *
  * @author arth
  */
 public class jProjectReader extends Observable {
     protected database ourDatabase;
-    protected List lBWFProcessors;
+    protected List lWAVProcessors;
     protected File fSourceFile;
     protected File fSourceFolder;
     protected boolean bLoaded = false;
@@ -27,7 +29,7 @@ public class jProjectReader extends Observable {
     protected String strSQL;
     protected Statement st;
     protected Connection conn;
-    protected BWFProcessor tempBWFProc;
+    protected WAVProcessor tempWAVProc;
     protected int intSoundFilesLoaded = 0;
     protected static int intClipCounter = 1;
     protected int intSourceFileCount = 0;
@@ -59,6 +61,24 @@ public class jProjectReader extends Observable {
             return 100;
         }
     }
+    /**
+     * Checks to see if this name already exists in the SOURCE_INDEX table
+     * @param strName The name to be checked
+     * @param st    A reference to the database in the form of an open statement
+     */
+    public static boolean getSourceNameExists (String strURI, Statement st) {
+        String strSQL = "SELECT COUNT(*) FROM PUBLIC.SOURCE_INDEX WHERE strDestFileName = \'" + strURI +"\';";
+        try {
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();
+            if (rs.getInt(1) > 0) {
+                return true;
+            } 
+        } catch (java.sql.SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        }
+        return false;
+    }
     /*
      * This returns a FileFilter which this class can read
      */
@@ -69,7 +89,7 @@ public class jProjectReader extends Observable {
     /*
      * This asks the object to load a project
      */
-    public boolean load (database setDatabase, List setBWFProcessors, File setSourceFile, jProjectTranslator setParent) {
+    public boolean load (database setDatabase, List setWAVProcessors, File setSourceFile, jProjectTranslator setParent) {
         oProjectTranslator = setParent;
         ourDatabase = setDatabase;
         try {
@@ -84,8 +104,8 @@ public class jProjectReader extends Observable {
         jProjectTranslator.dProjectFrameRate = jProjectTranslator.dPreferredFrameRate;
         jProjectTranslator.intProjectXfadeLength = jProjectTranslator.intPreferredXfadeLength;
         clearDatabase();
-        lBWFProcessors = setBWFProcessors;
-        lBWFProcessors.clear();
+        lWAVProcessors = setWAVProcessors;
+        lWAVProcessors.clear();
         fSourceFile = setSourceFile;
         fSourceFolder = fSourceFile.getParentFile();
         new SimpleThread("jProjectReader").start();
@@ -154,6 +174,16 @@ public class jProjectReader extends Observable {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
             } 
             strSQL = "DELETE FROM PUBLIC.ARDOUR_SOURCES;";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            strSQL = "DELETE FROM PUBLIC.ARDOUR_TEMPO;";
+            i = st.executeUpdate(strSQL);
+            if (i == -1) {
+                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+            }
+            strSQL = "DELETE FROM PUBLIC.ARDOUR_TIME_SIGNATURE;";
             i = st.executeUpdate(strSQL);
             if (i == -1) {
                 System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());

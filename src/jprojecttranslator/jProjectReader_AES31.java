@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import wavprocessor.WAVProcessor;
 
 /**
  * This is a project reader for AES31 (.adl) files
@@ -334,7 +335,7 @@ public class jProjectReader_AES31 extends jProjectReader {
             return false;
         }
         String strLine = setSource.getText();
-        String strName, strURI, strFileName, strUMID;
+        String strName, strURI, strFileName, strUMID, strDestFileName;
         long lLength, lFileTCOffset;
         int intIndex;
         Matcher mMatcher;
@@ -358,6 +359,7 @@ public class jProjectReader_AES31 extends jProjectReader {
                 // Strip off leading and trailing quotes
                 strName = mMatcher.group(6);
                 strName = strName.substring(1, strName.length()-1);
+                strName = strName.replaceAll("[\\/:*?\"<>|%&]","_");
                 strName = URLEncoder.encode(strName, "UTF-8");
                 strUMID = mMatcher.group(3);
                 if (strUMID.length() > 2) {
@@ -385,12 +387,15 @@ public class jProjectReader_AES31 extends jProjectReader {
                 // The source file name is read from the URI
                 strFileName = fTemp.getName();
                 // This is encoded for insertion to the database
+                strDestFileName = strFileName;
+                strDestFileName = strDestFileName.replaceAll("[\\/:*?\"<>|%&]","_");
                 strFileName = URLEncoder.encode(strFileName, "UTF-8");
+                strDestFileName = URLEncoder.encode(strDestFileName, "UTF-8");
                 lLength = getADLTimeLong(mMatcher.group(5));
                 lFileTCOffset = getADLTimeLong(mMatcher.group(4));
                 intIndex = Integer.parseInt(mMatcher.group(1));
                 strSQL = "INSERT INTO PUBLIC.SOURCE_INDEX (intIndex, strType, strDestFileName, strUMID, intLength, strName, intFileOffset, intTimeCodeOffset, strSourceFile, intCopied, intVCSInProject, intFileSize) VALUES (" +
-                    intIndex + ", \'F\',\'" + strFileName + "\',\'" + strUMID + "\', " + lLength + ", \'" + strName + "\', 0, " + lFileTCOffset + ", \'" + strFileName + "\', 0, 0, 0) ;";
+                    intIndex + ", \'F\',\'" + strDestFileName + "\',\'" + strUMID + "\', " + lLength + ", \'" + strName + "\', 0, " + lFileTCOffset + ", \'" + strFileName + "\', 0, 0, 0) ;";
                 int i = st.executeUpdate(strSQL);
                 if (i == -1) {
                     System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
@@ -663,11 +668,11 @@ public class jProjectReader_AES31 extends jProjectReader {
      */
     protected int loadSoundFiles(Statement st, File fAudioFolder) {
         try {
-            strSQL = "SELECT intIndex, strName, strSourceFile, intLength FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
+            strSQL = "SELECT intIndex, strName, strSourceFile, intLength, strDestFileName FROM PUBLIC.SOURCE_INDEX ORDER BY intIndex;";
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(strSQL);
-            String strSourceFile, strName, strUMID;
-            File fLocalSourceFile;
+            String strSourceFile, strName, strUMID, strDestFileName, strType;
+            File fLocalSourceFile, fTempLocalSourceFile;
             long lIndicatedFileSize, lSampleRate, lSourceFileSize, lTimeCodeOffset;
             double dDuration, dSourceSamples;
             int intSourceIndex, intChannels;
@@ -676,36 +681,84 @@ public class jProjectReader_AES31 extends jProjectReader {
                 intSourceIndex = rs.getInt(1);
                 strName = URLDecoder.decode(rs.getString(2), "UTF-8");
                 strSourceFile = URLDecoder.decode(rs.getString(3), "UTF-8");
+                strDestFileName = URLDecoder.decode(rs.getString(5), "UTF-8");
                 dSourceSamples = rs.getDouble(4);
-                fLocalSourceFile = new File(fAudioFolder, strSourceFile);
-                tempBWFProc = new BWFProcessor();
-                tempBWFProc.setSrcFile(fLocalSourceFile);
-                tempBWFProc.setMultipart(false);
+                fTempLocalSourceFile = new File(fAudioFolder, strSourceFile);
+                if (!fTempLocalSourceFile.exists()) {
+                    File[] files = fAudioFolder.listFiles();
+                    for (File file : files) {
+                        if (file.isDirectory()) {
+                            fTempLocalSourceFile = new File(file, strSourceFile);
+                            if (fTempLocalSourceFile.exists()) {
+                                break;
+                            }
+                        }
+                    }
+                }
+                fLocalSourceFile = fTempLocalSourceFile;
+                tempWAVProc = new WAVProcessor();
+                tempWAVProc.setSrcFile(fLocalSourceFile);
+                tempWAVProc.setMultipart(false);
                 if (fLocalSourceFile.exists()) {
                     System.out.println("Source file " + fLocalSourceFile + " found");
                 } else {
                     System.out.println("Source file " + fLocalSourceFile + " not found");
                 }
-                if (fLocalSourceFile.exists() && fLocalSourceFile.canRead() && tempBWFProc.readFile(0,fLocalSourceFile.length())) {
-                    lIndicatedFileSize = tempBWFProc.getIndicatedFileSize();
-                    lSampleRate = tempBWFProc.getSampleRate();
-                    dDuration =  tempBWFProc.getDuration();
-                    intChannels = tempBWFProc.getNoOfChannels();
+                if (fLocalSourceFile.exists() && fLocalSourceFile.canRead() && tempWAVProc.readFile(0,fLocalSourceFile.length())) {
+                    lIndicatedFileSize = tempWAVProc.getIndicatedFileSize();
+                    lSampleRate = tempWAVProc.getSampleRate();
+                    dDuration =  tempWAVProc.getDuration();
+                    intChannels = tempWAVProc.getNoOfChannels();
                     if (dSourceSamples < 2) {
-                        dSourceSamples = tempBWFProc.getNoOfSamples()/intChannels;
+                        dSourceSamples = tempWAVProc.getNoOfSamples()/intChannels;
                     }
+                    strType = tempWAVProc.getFileType() + " " + tempWAVProc.getBitsPerSample() + " bit ";
+                    if (tempWAVProc.hasBextChunk()) {
+                        strType = "B-" + strType;
+                    }
+                    // Need to update the destination file extension, wav, rf64 or w64 but avoid name clashes, e.g. you could have three different files, test.wav, test.rf64, test.w64
+                    if (jProjectTranslator.intSave64BitFilesAs == 0){
+                        // Keep original 64 bit format
+                        if (tempWAVProc.getFileType().equalsIgnoreCase("rf64") && !strDestFileName.toLowerCase().endsWith(".wav")) {
+                            // RF64 file without wav extension, need to add it.
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                        if (tempWAVProc.getFileType().equalsIgnoreCase("w64") && jProjectTranslator.bAlwaysUseWavExt && !strDestFileName.toLowerCase().endsWith(".wav")) {
+                            // W64 file doesn't end in .wav but user always wants to always have .wav at end
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                    }
+                    if (tempWAVProc.getFileType().equalsIgnoreCase("wav")) {
+                        if (!strDestFileName.toLowerCase().endsWith(".wav")) {
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                    }
+                    // Always save as RF64
+                    if (jProjectTranslator.intSave64BitFilesAs == 1) {
+                            if (!strDestFileName.toLowerCase().endsWith(".wav")) {
+                            strDestFileName = strDestFileName + ".wav";
+                        }
+                    }
+                    // Always save w64
+                    if (!jProjectTranslator.bAlwaysUseWavExt && jProjectTranslator.intSave64BitFilesAs == 2 && tempWAVProc.getFileType().equalsIgnoreCase("RF64") && !strDestFileName.toLowerCase().endsWith(".w64")) {
+                        strDestFileName = strDestFileName + ".w64";
+                    } 
+                    if (jProjectTranslator.bAlwaysUseWavExt && jProjectTranslator.intSave64BitFilesAs == 2 && !strDestFileName.toLowerCase().endsWith(".wav")) {
+                        strDestFileName = strDestFileName + ".wav";
+                    }  
+                    strDestFileName = URLEncoder.encode(strDestFileName, "UTF-8");
                     strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intIndicatedFileSize = " + lIndicatedFileSize + ", intSampleRate =  " + lSampleRate + ", dDuration =  " + dDuration + ", intChannels = " + intChannels
-                            + ", intLength = " + dSourceSamples
-                            + " WHERE intIndex = " + intSourceIndex + ";";
+                            + ", intLength = " + dSourceSamples + ", strDestFileName = \'"
+                            + strDestFileName + "\', strType = \'" + strType + "\' WHERE intIndex = " + intSourceIndex + ";";
                     int i = st.executeUpdate(strSQL);
                     if (i == -1) {
                         System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                     }
-                    if (tempBWFProc.getBextTitle().length() == 0) {
-                        tempBWFProc.setBextTitle(strName);
+                    if (tempWAVProc.getBextTitle().length() == 0) {
+                        tempWAVProc.setBextTitle(strName);
                     }
-                    if (tempBWFProc.getBextOriginatorRef().length() > 0) {
-                        strUMID = URLEncoder.encode(tempBWFProc.getBextOriginatorRef(), "UTF-8");
+                    if (tempWAVProc.getBextOriginatorRef().length() > 0) {
+                        strUMID = URLEncoder.encode(tempWAVProc.getBextOriginatorRef(), "UTF-8");
                         strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strUMID = \'" + strUMID + "\' WHERE intIndex = " + intSourceIndex + ";";
                         i = st.executeUpdate(strSQL);
                         if (i == -1) {
@@ -713,7 +766,7 @@ public class jProjectReader_AES31 extends jProjectReader {
                         }
                     } else {
                         strUMID = jProjectTranslator.getNewUSID();
-                        tempBWFProc.setBextOriginatorRef(strUMID);
+                        tempWAVProc.setBextOriginatorRef(strUMID);
                         strUMID = URLEncoder.encode(strUMID, "UTF-8");
                         strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET strUMID = \'" + strUMID + "\' WHERE intIndex = " + intSourceIndex + ";";
                         i = st.executeUpdate(strSQL);
@@ -721,8 +774,8 @@ public class jProjectReader_AES31 extends jProjectReader {
                             System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
                         }
                     }
-                    if (tempBWFProc.getBextTimeCodeOffset() > 0) {
-                        lTimeCodeOffset = tempBWFProc.getBextTimeCodeOffset();
+                    if (tempWAVProc.getBextTimeCodeOffset() > 0) {
+                        lTimeCodeOffset = tempWAVProc.getBextTimeCodeOffset();
                         System.out.println("Timecode ref from source file is " +  lTimeCodeOffset);
                         strSQL = "UPDATE PUBLIC.SOURCE_INDEX SET intTimeCodeOffset = " + lTimeCodeOffset + " WHERE intIndex = " + intSourceIndex + ";";
                         i = st.executeUpdate(strSQL);
@@ -731,7 +784,7 @@ public class jProjectReader_AES31 extends jProjectReader {
                         }
                     }
                     
-                    lBWFProcessors.add(tempBWFProc);
+                    lWAVProcessors.add(tempWAVProc);
                     intSoundFilesLoaded++;
                     setChanged();
                     notifyObservers();
