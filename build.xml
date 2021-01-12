@@ -17,6 +17,7 @@
             <zipfileset src="lib/joda-time.jar" />
             <zipfileset src="lib/NanoHTTPD.jar" />			
             <zipfileset src="lib/OpenForecast-0.5.0.jar" />
+            <zipfileset src="lib/WAVProcessor.jar" />
         </jar>
     </target>  
     <target name="-pre-jar" >

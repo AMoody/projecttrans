@@ -24,3 +24,4 @@ hs_err_pid*
 /build/
 /dist/
 /nbproject/
+!/lib/WAVProcessor.jar
