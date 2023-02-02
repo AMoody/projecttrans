@@ -11,6 +11,8 @@ import java.net.URLEncoder;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import org.dom4j.Element;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -31,7 +33,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     /** This is the xml document object which is used for loading and saving to an xml file.*/
     static Document xmlDocument = DocumentHelper.createDocument();
     DateTime dtsCreated;
-        
+    static final long lSuperclockTicksPerSecond = 282240000;
     /**
      * This returns a FileFilter which shows the files this class can read
      * @return FileFilter
@@ -989,7 +991,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     }/**
      * Parse an Ardour 'region' in to the EVENT_LIST table.
      * Entries on an EDL are called regions in Ardour. Regions can have any number of audio tracks.
-     * For maximum compatability these will be treated as mono. All editing systems can handle mono tracks, some can handle stereo but few can handle multichannel tracks.
+     * For maximum compatibility these will be treated as mono. All editing systems can handle mono tracks, some can handle stereo but few can handle multichannel tracks.
      * The track map in the EVENT_LIST table can contain text like this '1 4' meaning source channel 1 goes to edl channel 4.
      * Stereo mapping looks like this, '1~2 3~4'
      * @param xmlRegion     This is an xml Element containing the region data
@@ -1036,9 +1038,30 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             System.out.println("Error on while trying to encode string" );
             return;
         }
-        long lDestIn = (Long.parseLong(xmlRegion.attributeValue("position")));
-        long lDestOut = (Long.parseLong(xmlRegion.attributeValue("length"))) + lDestIn;
-        long lSourceIn = (Long.parseLong(xmlRegion.attributeValue("start")));
+        long lDestIn;
+        long lDestOut;
+        long lSourceIn;
+        /**
+         * Added code to support ardour V7
+         * Starting from Ardour v7 the timing information is stored in a new format which is intended to make conversion between musical time and audio time work.
+         * The project file uses audio time indicated by the letter a
+         */
+        Pattern pLength = Pattern.compile("a(\\d+)@a(\\d+)");
+        Matcher mMatcher = pLength.matcher(xmlRegion.attributeValue("length"));
+        if (mMatcher.find()) {
+            lDestIn = jProjectTranslator.intProjectSampleRate * Long.parseLong(mMatcher.group(2)) / lSuperclockTicksPerSecond;
+            lDestOut = jProjectTranslator.intProjectSampleRate * (Long.parseLong(mMatcher.group(1)) + lDestIn) / lSuperclockTicksPerSecond;
+        } else {
+            lDestIn = (Long.parseLong(xmlRegion.attributeValue("position")));
+            lDestOut = (Long.parseLong(xmlRegion.attributeValue("length"))) + lDestIn;
+        }
+        Pattern pAudioTime = Pattern.compile("a(\\d+)");
+        mMatcher = pAudioTime.matcher(xmlRegion.attributeValue("start"));
+        if (mMatcher.find()) {
+            lSourceIn = jProjectTranslator.intProjectSampleRate * Long.parseLong(mMatcher.group(1)) / lSuperclockTicksPerSecond;
+        } else {
+            lSourceIn = (Long.parseLong(xmlRegion.attributeValue("start"))); 
+        }
         // In Ardour the gain is a value to use a mutliplication, so 0dB = 1 in Ardour, need to convert this to dB for AES31
         
         String strGain;
@@ -1086,7 +1109,12 @@ public class jProjectReader_ARDOUR extends jProjectReader {
             StringTokenizer stTokens = new StringTokenizer(strEvents); 
             while(stTokens.hasMoreTokens()) {
                 strKey = stTokens.nextToken();
-                fOffset = java.lang.Math.round(Float.parseFloat(strKey));
+                mMatcher = pAudioTime.matcher(strKey);
+                if (mMatcher.find()) {
+                    fOffset = java.lang.Math.round(jProjectTranslator.intProjectSampleRate * Long.parseLong(mMatcher.group(1)) / lSuperclockTicksPerSecond);
+                } else {
+                    fOffset = java.lang.Math.round(Float.parseFloat(strKey));
+                }
                 strValue = stTokens.nextToken();
                 fValue = Float.parseFloat(strValue);
                 // The list consists of keys which are the time in samples across the region, and values which are a float between 1 and 0.

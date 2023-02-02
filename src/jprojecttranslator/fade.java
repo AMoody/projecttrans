@@ -3,6 +3,7 @@ import org.dom4j.Element;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import static jprojecttranslator.jProjectReader_ARDOUR.lSuperclockTicksPerSecond;
 import net.sourceforge.openforecast.DataSet;
 import net.sourceforge.openforecast.DataPoint;
 import net.sourceforge.openforecast.Observation;
@@ -138,9 +139,16 @@ public class fade {
         Element xmlAutomationList = xmlSource.element("AutomationList");
         String strEvents = xmlAutomationList.elementText("events");
         StringTokenizer st = new StringTokenizer(strEvents); 
+        Pattern pAudioTime = Pattern.compile("a(\\d+)");
+        Matcher mMatcher;
         while(st.hasMoreTokens()) {
             strKey = st.nextToken();
-            lTempLength = java.lang.Math.round(Float.parseFloat(strKey));
+            mMatcher = pAudioTime.matcher(strKey);
+            if (mMatcher.find()) {
+                lTempLength = java.lang.Math.round(jProjectTranslator.intProjectSampleRate * Long.parseLong(mMatcher.group(1)) / lSuperclockTicksPerSecond);
+            } else {
+                lTempLength = java.lang.Math.round(Float.parseFloat(strKey));
+            }            
             if (lTempLength > lLength) {
                 lLength = lTempLength;
             }
