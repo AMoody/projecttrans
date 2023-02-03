@@ -1050,7 +1050,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         Matcher mMatcher = pLength.matcher(xmlRegion.attributeValue("length"));
         if (mMatcher.find()) {
             lDestIn = jProjectTranslator.intProjectSampleRate * Long.parseLong(mMatcher.group(2)) / lSuperclockTicksPerSecond;
-            lDestOut = jProjectTranslator.intProjectSampleRate * (Long.parseLong(mMatcher.group(1)) + lDestIn) / lSuperclockTicksPerSecond;
+            lDestOut = jProjectTranslator.intProjectSampleRate * (Long.parseLong(mMatcher.group(1))) / lSuperclockTicksPerSecond + lDestIn;
         } else {
             lDestIn = (Long.parseLong(xmlRegion.attributeValue("position")));
             lDestOut = (Long.parseLong(xmlRegion.attributeValue("length"))) + lDestIn;
