@@ -11,6 +11,8 @@ import java.net.URLEncoder;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import org.dom4j.Element;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -33,7 +35,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     /** This is the xml document object which is used for loading and saving to an xml file.*/
     static Document xmlDocument = DocumentHelper.createDocument();
     DateTime dtsCreated;
-    static final long lSuperclockTicksPerSecond = 282240000;        
+    static final long lSuperclockTicksPerSecond = 282240000;
     /**
      * This returns a FileFilter which shows the files this class can read
      * @return FileFilter
@@ -612,20 +614,35 @@ public class jProjectReader_ARDOUR extends jProjectReader {
      * @return 
      */
     protected int parseTempoData(Element xmlTempoMap, Statement st){
-        Element xmlTempo, xmlMeter;
+        Element xmlTempo, xmlMeter, xmlTempos, xmlMeters;
         int intNoteType, intDivisionsPerBar, intBeat ;
         long lFrame;
         double dBeatsPerMinute, dEndBeatsPerMinute, dPulse;
         String strBBT = "";
+        Pattern pQuarters = Pattern.compile("(\\d+):(\\d+)");
+        Matcher mMatcher;
+//        if (mMatcher.find()) {
+//            lDestIn = jProjectTranslator.intProjectSampleRate * Long.parseLong(mMatcher.group(2)) / lSuperclockTicksPerSecond;
+//            lDestOut = jProjectTranslator.intProjectSampleRate * (Long.parseLong(mMatcher.group(1))) / lSuperclockTicksPerSecond + lDestIn;
+//        }        
         if (xmlTempoMap != null) {
-            for (Iterator i = xmlTempoMap.elementIterator("Tempo");i.hasNext();) {
+            xmlTempos = xmlTempoMap.element("Tempos");
+            for (Iterator i = xmlTempos.elementIterator("Tempo");i.hasNext();) {
                 xmlTempo = (Element)i.next();
                 try {
-                dPulse = Double.parseDouble(xmlTempo.attributeValue("pulse"));
-                lFrame = (Long.parseLong(xmlTempo.attributeValue("frame")));
-                dBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("beats-per-minute"));
-                intNoteType = Integer.parseInt(xmlTempo.attributeValue("note-type"));
-                dEndBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("end-beats-per-minute"));     
+                    // In earlier versions of Ardour pulse was musical time in bars, musical time is now in quarter bars in the project file
+                    mMatcher = pQuarters.matcher(xmlTempo.attributeValue("quarters"));
+                    if (mMatcher.find()) {
+                        dPulse = ( Long.parseLong(mMatcher.group(1)) + (Long.parseLong(mMatcher.group(2)) / 1920));
+                    } else {
+                        dPulse = 0;
+                    }
+                    dPulse = dPulse / 4;
+                    // In earlier versions of Ardour frame was audio time in samples, audio time is now in superclock in the project file
+                    lFrame = jProjectTranslator.intProjectSampleRate * (Long.parseLong(xmlTempo.attributeValue("sclock"))) / lSuperclockTicksPerSecond;
+                    dBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("npm"));
+                    intNoteType = Integer.parseInt(xmlTempo.attributeValue("note-type"));
+                    dEndBeatsPerMinute = Double.parseDouble(xmlTempo.attributeValue("enpm"));     
                 
                     strSQL = "INSERT INTO PUBLIC.ARDOUR_TEMPO (dPulse, intFrame, dBeatsPerMinute, intNoteType, dEndBeatsPerMinute) VALUES (" +
                         dPulse + ", " + lFrame + ", "+ dBeatsPerMinute + ", " + intNoteType + ", " + dEndBeatsPerMinute + " );";
@@ -642,10 +659,19 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                     return -1;
                 }
             }
-            for (Iterator i = xmlTempoMap.elementIterator("Meter");i.hasNext();) {
+            xmlMeters = xmlTempoMap.element("Meters");
+            for (Iterator i = xmlMeters.elementIterator("Meter");i.hasNext();) {
                 xmlMeter = (Element)i.next();
-                dPulse = Double.parseDouble(xmlMeter.attributeValue("pulse"));
-                lFrame = (Long.parseLong(xmlMeter.attributeValue("frame")));
+                // In earlier versions of Ardour pulse was musical time in bars, musical time is now in quarter bars in the project file
+                mMatcher = pQuarters.matcher(xmlMeter.attributeValue("quarters"));
+                if (mMatcher.find()) {
+                    dPulse = ( Long.parseLong(mMatcher.group(1)) + (Long.parseLong(mMatcher.group(2)) / 1920));
+                } else {
+                    dPulse = 0;
+                }
+                dPulse = dPulse / 4;
+                // In earlier versions of Ardour frame was audio time in samples, audio time is now in superclock in the project file
+                lFrame = jProjectTranslator.intProjectSampleRate * (Long.parseLong(xmlMeter.attributeValue("sclock"))) / lSuperclockTicksPerSecond;
                 strBBT = xmlMeter.attributeValue("bbt");
                 try {
                     strBBT = URLEncoder.encode(strBBT, "UTF-8");
@@ -653,8 +679,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
                     System.out.println("Error on while trying to encode string" );
                     
                 }
-                intBeat = Integer.parseInt(xmlMeter.attributeValue("beat"));
-                intNoteType = Integer.parseInt(xmlMeter.attributeValue("note-type"));
+                // intBeat = Integer.parseInt(xmlMeter.attributeValue("beat"));
+                intBeat = 0;
+                intNoteType = Integer.parseInt(xmlMeter.attributeValue("note-value"));
                 intDivisionsPerBar = Integer.parseInt(xmlMeter.attributeValue("divisions-per-bar"));     
                 try {
                     strSQL = "INSERT INTO PUBLIC.ARDOUR_TIME_SIGNATURE (dPulse, intFrame, strBBT, intBeat, intNoteType, intDivisionsPerBar) VALUES (" +
@@ -991,7 +1018,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
     }/**
      * Parse an Ardour 'region' in to the EVENT_LIST table.
      * Entries on an EDL are called regions in Ardour. Regions can have any number of audio tracks.
-     * For maximum compatability these will be treated as mono. All editing systems can handle mono tracks, some can handle stereo but few can handle multichannel tracks.
+     * For maximum compatibility these will be treated as mono. All editing systems can handle mono tracks, some can handle stereo but few can handle multichannel tracks.
      * The track map in the EVENT_LIST table can contain text like this '1 4' meaning source channel 1 goes to edl channel 4.
      * Stereo mapping looks like this, '1~2 3~4'
      * @param xmlRegion     This is an xml Element containing the region data

@@ -135,29 +135,29 @@ public class jProjectReader_AES31 extends jProjectReader {
         
         Pattern pADLID = Pattern.compile("\\(ADL_ID\\)\\s*\"(.+)\"");
         mMatcher = pADLID.matcher(strLine);
-            if (mMatcher.find()) {
-                strADLID = mMatcher.group(1);
-                System.out.println("ADL ID found " + strADLID);
+        if (mMatcher.find()) {
+            strADLID = mMatcher.group(1);
+            System.out.println("ADL ID found " + strADLID);
         }
         
         Pattern pADLUID = Pattern.compile("\\(ADL_UID\\)\\s*(.+)");
         mMatcher = pADLUID.matcher(strLine);
-            if (mMatcher.find()) {
-                strADLUID = mMatcher.group(1);
-                System.out.println("ADL UID found " + strADLUID);
+        if (mMatcher.find()) {
+            strADLUID = mMatcher.group(1);
+            System.out.println("ADL UID found " + strADLUID);
         }
             
         Pattern pADLVersion = Pattern.compile("\\(VER_ADL_VERSION\\)\\s*([\\d|\\.]+)");
         mMatcher = pADLVersion.matcher(strLine);
-            if (mMatcher.find()) {
-                strADLVersion = mMatcher.group(1);
-                System.out.println("ADL version found " + strADLVersion);
+        if (mMatcher.find()) {
+            strADLVersion = mMatcher.group(1);
+            System.out.println("ADL version found " + strADLVersion);
         }
         Pattern pCreator = Pattern.compile("\\(VER_CREATOR\\)\\s*\"(.+)\"");
         mMatcher = pCreator.matcher(strLine);
-            if (mMatcher.find()) {
-                strCreator = mMatcher.group(1);
-                System.out.println("ADL creator found " + strCreator);
+        if (mMatcher.find()) {
+            strCreator = mMatcher.group(1);
+            System.out.println("ADL creator found " + strCreator);
         }
         Pattern pCrtr = Pattern.compile("\\(VER_CRTR\\)\\s*([\\d|\\.|-]+)");
         mMatcher = pCrtr.matcher(strLine);
