@@ -848,9 +848,17 @@ public class jProjectReader_ARDOUR extends jProjectReader {
         String strKey, strValue;
         String strEvents = xmlEvent.getText();
         StringTokenizer stTokens = new StringTokenizer(strEvents); 
+        
+        Pattern pAudioTime = Pattern.compile("a(\\d+)");
+        Matcher mMatcher;
         while(stTokens.hasMoreTokens()) {
             strKey = stTokens.nextToken();
-            fOffset = java.lang.Math.round(Float.parseFloat(strKey));
+            mMatcher = pAudioTime.matcher(strKey);
+            if (mMatcher.find()) {
+                fOffset = jProjectTranslator.intProjectSampleRate * Long.parseLong(mMatcher.group(1)) / lSuperclockTicksPerSecond;
+            } else {
+                fOffset = java.lang.Math.round(Float.parseFloat(strKey));
+            }            
             strValue = stTokens.nextToken();
             fValue = Float.parseFloat(strValue);
             // The list consists of keys which are the time in samples through the track, and values which are a float between 1 and 0.

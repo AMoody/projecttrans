@@ -136,7 +136,7 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
 //            strEDLText = strEDLText + str8Space + "(SEQ_DEST_START)   00.00.00.00/0000\n";
 //            strEDLText = strEDLText + str4Space + "</SEQUENCE>\n";
             // Fill in the SOURCE_INDEX tags
-            strEDLText = strEDLText + "Output Channels: 2\n";
+            strEDLText = strEDLText + "Output Channels: 2\n\n\n";
             
             // Write Source Table Entries
             strSQL = "SELECT COUNT(*) FROM PUBLIC.SOURCE_INDEX;";
@@ -153,7 +153,7 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
             rs = st.executeQuery(strSQL);
             while (rs.next()) {
                 // We're going to create new indexes starting at 1 but we need to keep a list of the old indexes to use later.
-                strIndex = String.format("%3s", intNewIndex++);
+                strIndex = String.format("%4s", intNewIndex++);
                 listOldSourceIndexes.add(rs.getString(1));
                 strURI = URLDecoder.decode(rs.getString(2), "UTF-8");
                 // It has been URL encoded to trap nasty characters from the database
@@ -167,29 +167,9 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
                 if (strURI.startsWith("file://localhost")) {
                     strURI = strURI.substring(16, strURI.length());
                 }                
-                // The URI field in an AES31 adl file is not URL encoded so we might not be able to decode it with URI unless we URI encode it first, we want to use the getPath() method.
-//                strURI = URLEncoder.encode(strURI, "UTF-8");
-//                // Make it in to a URI
-//                URI uriTemp = new URI(strURI);
-//                // Use the getPath() method
-//                strURI = uriTemp.getPath();
-//                // Decode the path and make it in to a file
-//                File fTemp = new File(URLDecoder.decode(strURI, "UTF-8"));
-//                // The source file name is read from the URI
-//                strURI = fTemp.getAbsolutePath();                
-               
-                
-//                strUMID = URLDecoder.decode(rs.getString(3), "UTF-8");
-//                strTimeCodeOffset = getADLTimeString(rs.getLong(6), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
-//                strFileDuration = "_";
-//                if (rs.getLong(4) > 2) {
-//                    strFileDuration = getADLTimeString(rs.getLong(4), jProjectTranslator.intPreferredSampleRate, jProjectTranslator.dPreferredFrameRate);
-//                }
-//                strName = URLDecoder.decode(rs.getString(5), "UTF-8");
                 strEDLText = strEDLText + strIndex + " \"" + strURI + "\"\n";
-//                strEDLText = strEDLText + str12Space + " (F) \"" + strURI + "\" \"" + strUMID + "\" " +  strTimeCodeOffset + " " + strFileDuration + " \"" + strName + "\" N\n";
             }
-//            strEDLText = strEDLText + str4Space + "</SOURCE_INDEX>\n";
+            strEDLText = strEDLText + "\n";
             // Fill in the Track n: tags
             // Track 1: "Drums" Solo: 0 Mute: 0
             strSQL = "SELECT intIndex, strName FROM PUBLIC.TRACKS ORDER BY intIndex;";
@@ -260,9 +240,30 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
                 }
                 
                         
-                strEDLText = strEDLText + "\n";
-                strEDLText = strEDLText + "\n";
+
             }            
+            strEDLText = strEDLText + "\n";
+            strEDLText = strEDLText + "\n";            
+            strEDLText = strEDLText + "#Volume/Pan curves\n";
+            strSQL = "SELECT intIndex, strName FROM PUBLIC.TRACKS ORDER BY intIndex;";
+            st = conn.createStatement();
+            rs = st.executeQuery(strSQL);
+            intNewIndex = 1;
+            while (rs.next()) {
+                
+                strEDLText = strEDLText + "\n";
+                strEDLText = strEDLText + "Volume for Track " + intNewIndex + ":\n";
+                strEDLText = strEDLText + "#Play-In       Vol(dB)\n";
+                strEDLText = strEDLText + "#----------- ---------\n";
+                strEDLText = strEDLText + "           0 0.000    \n";
+                strEDLText = strEDLText + "\n";
+                strEDLText = strEDLText + "Pan for Track " + intNewIndex++ + ":\n";
+                strEDLText = strEDLText + "#Play-In      Pan(0...2)\n";
+                strEDLText = strEDLText + "#----------- ---------\n";
+                strEDLText = strEDLText + "           0 1.00000  \n";
+                
+            }
+            
 //       4    14           0     1948774      271360     2220134     0.00  0  0          480     0 "*default"                                11756     0 "*default"                         "14-LV 2-260118_1725.wav"            
             //listOldTrackIndexes
             
