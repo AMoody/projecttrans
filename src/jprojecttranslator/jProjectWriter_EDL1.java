@@ -12,6 +12,7 @@ import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -52,24 +53,37 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
         System.out.println("EDL1 writer thread running");
         // Clear the TRACKS table
         // The AES31 writer doesn't need the tracks table except to use it to keep of newly created tracks.
-        // The Ardour writer deletes and recreates the data in the TRACKS table.
-        rebuildTracksTable();
+        // The EDL1 writer keeps the tracks table if it exists otherwise recreates it.
+        strSQL = "SELECT COUNT(*) FROM PUBLIC.TRACKS;";
+
+        try {
+            st = conn.createStatement();
+            ResultSet rs = st.executeQuery(strSQL);
+            rs.next();            
+            if (rs.getInt(1) == 0) {
+                rebuildTracksTable();
+            }
+        } catch (SQLException e) {
+            System.out.println("Error on SQL " + strSQL + e.toString());
+        }
+
+        // rebuildTracksTable();
         // Fill in the URI information
         writeURIs ();
         // Move overlapping tracks
-        int intCounter = 0;
-        int intMovedTracks = 0;
-        do {
-            intMovedTracks = moveSubordinateClips(st);
-            intCounter++;
-            
-        } while (intMovedTracks > 0 && intCounter < 500);
+//        int intCounter = 0;
+//        int intMovedTracks = 0;
+//        do {
+//            intMovedTracks = moveSubordinateClips(st);
+//            intCounter++;
+//            
+//        } while (intMovedTracks > 0 && intCounter < 500);
         /**
         * Next step is to create an EDL file and write the output.
         */
         writeEDLFile(fDestFile, st);
         String strHTMLFile = new String(fDestFile.toString() + ".html");
-        oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.ADLFileWritten"));
+        oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.EDLFileWritten"));
         writeAudioFiles ();
         oProjectTranslator.writeStringToPanel(java.util.ResourceBundle.getBundle("jprojecttranslator/Bundle").getString("jProjectWriter.Finished"));
         System.out.println("EDL1 writer thread finished");
@@ -88,56 +102,20 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
         String str3Space = "   ";
         List listOldSourceIndexes = new ArrayList();
         List listOldTrackIndexes = new ArrayList();
-        int intNewIndex = 1;
+        int intNewTrackIndex = 1;
         try {
-            
-            // Fill in the VERSION tags
-//            strSQL = "SELECT strADLVersion, strCreator, strCreatorVersion FROM PUBLIC.VERSION;";
-            st = conn.createStatement();
-            ResultSet rs = st.executeQuery(strSQL);
-//            rs.next();
-//            if (!(rs.wasNull()) ) {
-//                strEDLText = strEDLText + str4Space + "<VERSION>\n";
-//                strEDLText = strEDLText + str8Space + "(VER_ADL_VERSION)  " + (URLDecoder.decode(rs.getString(1), "UTF-8")) + "\n";
-//                strEDLText = strEDLText + str8Space + "(VER_CREATOR)      \"" + (URLDecoder.decode(rs.getString(2), "UTF-8")) + "\"\n";
-//                strEDLText = strEDLText + str8Space + "(VER_CRTR)         " + (URLDecoder.decode(rs.getString(3), "UTF-8")) + "\n";
-//                strEDLText = strEDLText + str4Space + "</VERSION>\n";
-//            }
             // Fill in the Title: tag
             strSQL = "SELECT strTitle, strNotes, dtsCreated FROM PUBLIC.PROJECT;";
             st = conn.createStatement();
-            rs = st.executeQuery(strSQL);
+            ResultSet rs = st.executeQuery(strSQL);
             rs.next();
             if (!(rs.wasNull()) ) {
                 strEDLText = strEDLText +  "Title:" + " \"" + (URLDecoder.decode(rs.getString(1), "UTF-8")) + "\"\n";
-//                strEDLText = strEDLText + str8Space + "(PROJ_TITLE)       \"" + (URLDecoder.decode(rs.getString(1), "UTF-8")) + "\"\n";
-//                strEDLText = strEDLText + str8Space + "(PROJ_NOTES)       \"" + (URLDecoder.decode(rs.getString(2), "UTF-8")) + "\"\n";
-//                DateTime dtCreated = fmtSQL.parseDateTime(rs.getString(3).substring(0, 19)).withZone(DateTimeZone.UTC);
-//                strEDLText = strEDLText + str8Space + "(PROJ_CREATE_DATE) " + fmtADLXML.print(dtCreated) + "\n";
-//                strEDLText = strEDLText + str4Space + "</PROJECT>\n";
-
             }
-            
             // Write the Sample Rate: tag
-//            strEDLText = strEDLText + str4Space + "<SYSTEM>\n";
-//            strEDLText = strEDLText + str8Space + "(SYS_XFADE_LEN)    " + String.format("%04d", jProjectTranslator.intPreferredXfadeLength) + "\n";
-//            strEDLText = strEDLText + str4Space + "</SYSTEM>\n";
-//            // Fill in the SEQUENCE tags
-//            strEDLText = strEDLText + str4Space + "<SEQUENCE>\n";
             strEDLText = strEDLText + "Sample Rate: " + jProjectTranslator.intPreferredSampleRate +  "\n";
             // Write the Output Channels:tag
-//            String strFrameRate;
-//            if (jProjectTranslator.dPreferredFrameRate%5 == 0) {
-//                strFrameRate = "" + (java.lang.Math.round(jProjectTranslator.dPreferredFrameRate));
-//            } else {
-//                strFrameRate = "" + jProjectTranslator.dPreferredFrameRate;
-//            }
-//            strEDLText = strEDLText + str8Space + "(SEQ_FRAME_RATE)   " + strFrameRate + "\n";
-//            strEDLText = strEDLText + str8Space + "(SEQ_DEST_START)   00.00.00.00/0000\n";
-//            strEDLText = strEDLText + str4Space + "</SEQUENCE>\n";
-            // Fill in the SOURCE_INDEX tags
             strEDLText = strEDLText + "Output Channels: 2\n\n\n";
-            
             // Write Source Table Entries
             strSQL = "SELECT COUNT(*) FROM PUBLIC.SOURCE_INDEX;";
             st = conn.createStatement();
@@ -153,7 +131,7 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
             rs = st.executeQuery(strSQL);
             while (rs.next()) {
                 // We're going to create new indexes starting at 1 but we need to keep a list of the old indexes to use later.
-                strIndex = String.format("%4s", intNewIndex++);
+                strIndex = String.format("%4s", intNewTrackIndex++);
                 listOldSourceIndexes.add(rs.getString(1));
                 strURI = URLDecoder.decode(rs.getString(2), "UTF-8");
                 // It has been URL encoded to trap nasty characters from the database
@@ -175,7 +153,7 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
             strSQL = "SELECT intIndex, strName FROM PUBLIC.TRACKS ORDER BY intIndex;";
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
-            intNewIndex = 1;
+            intNewTrackIndex = 1;
             String strTrackName = "";
             int intOldTrackIndex;
             ResultSet rs2;
@@ -184,7 +162,7 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
             long lPlayOut;
             long lRecordIn;
             long lRecordOut;
-            float fVol = 0;
+            String strGain = "0";
             int intMT = 0;
             int intLK = 0;
             long lFadeIn;
@@ -199,7 +177,7 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
                 intOldTrackIndex = rs.getInt(1);
                 listOldTrackIndexes.add(rs.getString(1));
                 strTrackName = URLDecoder.decode(rs.getString(2), "UTF-8");
-                strEDLText = strEDLText + "Track " + intNewIndex++ + ": \"" + strTrackName + "\" Solo: 0 Mute: 0\n";
+                strEDLText = strEDLText + "Track " + intNewTrackIndex + ": \"" + strTrackName + "\" Solo: 0 Mute: 0\n";
                 strEDLText = strEDLText + "#Source Track Play-In     Play-Out    Record-In   Record-Out  Vol(dB)  MT LK FadeIn       %     CurveType                          FadeOut      %     CurveType                          Name\n";
                 strEDLText = strEDLText + "#------ ----- ----------- ----------- ----------- ----------- -------- -- -- ------------ ----- ---------------------------------- ------------ ----- ---------------------------------- -----\n";
                 strSQL = "SELECT EVENT_LIST.intIndex, intSourceIndex, strTrackMap, intSourceIn, intDestIn, intDestOut, "
@@ -209,21 +187,26 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
                 while (rs2.next()) {
                     intSource = listOldSourceIndexes.indexOf(rs2.getString(2)) + 1;
                     // intSource = rs2.getInt(2);
-                    lPlayIn = rs2.getLong(4);
-                    lRecordIn = rs2.getLong(5);
-                    lRecordOut = rs2.getLong(6);
-                    lPlayOut = lPlayIn + lRecordOut - lRecordIn;
+                    lPlayIn = rs2.getLong(5);
+                    lRecordIn = rs2.getLong(4);
+                    lPlayOut = rs2.getLong(6);
+                    lRecordOut = lPlayOut - lPlayIn + lRecordIn;
                     lFadeIn = rs2.getLong(10);
                     lFadeOut = rs2.getLong(12);
                     strClipName = URLDecoder.decode(rs2.getString(7), "UTF-8");
-                    // strIndex = String.format("%3s", intNewIndex++);
-                    strEDLText = strEDLText + "#" + String.format("%6s", intSource);
-                    strEDLText = strEDLText + " " + String.format("%5s", intOldTrackIndex + 1);
+                    if (rs2.getString(13) == null || rs2.getString(13).equalsIgnoreCase("null")) {
+                        strGain = "0.00";
+                    } else {
+                        strGain = rs2.getString(13);
+                    }
+                    
+                    strEDLText = strEDLText + " " + String.format("%6s", intSource);
+                    strEDLText = strEDLText + " " + String.format("%5s", intNewTrackIndex);
                     strEDLText = strEDLText + " " + String.format("%11s", lPlayIn);
                     strEDLText = strEDLText + " " + String.format("%11s", lPlayOut);
                     strEDLText = strEDLText + " " + String.format("%11s", lRecordIn);
                     strEDLText = strEDLText + " " + String.format("%11s", lRecordOut);
-                    strEDLText = strEDLText + " " + String.format("%8s", fVol);
+                    strEDLText = strEDLText + " " + String.format("%8s", strGain);
                     strEDLText = strEDLText + " " + String.format("%2s", intMT);
                     strEDLText = strEDLText + " " + String.format("%2s", intLK);
                     strEDLText = strEDLText + " " + String.format("%12s", lFadeIn);
@@ -233,31 +216,35 @@ public class jProjectWriter_EDL1 extends jProjectWriter {
                     strEDLText = strEDLText + " " + String.format("%5s", strPercentOut);
                     strEDLText = strEDLText + " " + String.format("%-34s", strCurveTypeOut);
                     strEDLText = strEDLText + " " + "\"" + strClipName + "\"\n";
-                    
-                    
-                    
-                    
                 }
                 
                         
-
+                intNewTrackIndex++;
             }            
             strEDLText = strEDLText + "\n";
             strEDLText = strEDLText + "\n";            
             strEDLText = strEDLText + "#Volume/Pan curves\n";
-            strSQL = "SELECT intIndex, strName FROM PUBLIC.TRACKS ORDER BY intIndex;";
+            strSQL = "SELECT intChannelOffset FROM PUBLIC.TRACKS ORDER BY intIndex;";
             st = conn.createStatement();
             rs = st.executeQuery(strSQL);
-            intNewIndex = 1;
+            intNewTrackIndex = 1;
+            int intChannelOffset;
             while (rs.next()) {
-                
+                intChannelOffset = rs.getInt(1);
                 strEDLText = strEDLText + "\n";
-                strEDLText = strEDLText + "Volume for Track " + intNewIndex + ":\n";
+                strEDLText = strEDLText + "Volume for Track " + intNewTrackIndex + ":\n";
                 strEDLText = strEDLText + "#Play-In       Vol(dB)\n";
                 strEDLText = strEDLText + "#----------- ---------\n";
-                strEDLText = strEDLText + "           0 0.000    \n";
+//                strEDLText = strEDLText + "           0 0.000    \n";
+                strSQL = "SELECT intTrack, intTime, strLevel FROM PUBLIC.FADER_LIST WHERE intTrack = " + intChannelOffset + " ORDER BY intTime;";
+                System.out.println("SQL for FADER_LIST select" + strSQL);
+                rs2 = st.executeQuery(strSQL);
+                while (rs2.next()) {
+                    System.out.println("SQL for FADER_LIST select results" + String.format("%11s", rs2.getInt(2)) + " " + String.format("%-9s", rs2.getString(3)));
+                    strEDLText = strEDLText + " " + String.format("%11s", rs2.getInt(2)) + " " + String.format("%-9s", rs2.getString(3)) + "\n";
+                }
                 strEDLText = strEDLText + "\n";
-                strEDLText = strEDLText + "Pan for Track " + intNewIndex++ + ":\n";
+                strEDLText = strEDLText + "Pan for Track " + intNewTrackIndex++ + ":\n";
                 strEDLText = strEDLText + "#Play-In      Pan(0...2)\n";
                 strEDLText = strEDLText + "#----------- ---------\n";
                 strEDLText = strEDLText + "           0 1.00000  \n";

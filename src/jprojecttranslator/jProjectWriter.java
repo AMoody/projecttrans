@@ -186,7 +186,7 @@ public class jProjectWriter extends Observable implements Observer{
                 }
             }
         } catch (java.sql.SQLException e) {
-            System.out.println("Error on SQL " + strSQL + e.toString());
+            System.out.println("Error caught on SQL " + strSQL + e.toString());
         } catch (java.io.UnsupportedEncodingException e) {
             System.out.println("Error on decoding at " + strSQL + e.toString());
         } catch (java.net.URISyntaxException e) {

@@ -627,6 +627,9 @@ public class jProjectReader_ARDOUR extends jProjectReader {
 //        }        
         if (xmlTempoMap != null) {
             xmlTempos = xmlTempoMap.element("Tempos");
+            if (xmlTempos == null) {
+                return -1;
+            }
             for (Iterator i = xmlTempos.elementIterator("Tempo");i.hasNext();) {
                 xmlTempo = (Element)i.next();
                 try {
@@ -1321,7 +1324,7 @@ public class jProjectReader_ARDOUR extends jProjectReader {
 //            System.out.println("SQL is " + strSQL);
             i = st.executeUpdate(strSQL);
             if (i == -1) {
-                System.out.println("Error on SQL " + strSQL + st.getWarnings().toString());
+                System.out.println("Error on SQL while creating EVENT_LIST2 " + strSQL + st.getWarnings().toString());
             }
             // Truncate the newly created end region and give in a valid index number
             // First we need to find the current value of the intDestIn point as the intSourceIn point needs to move too.

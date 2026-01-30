@@ -768,7 +768,7 @@ public class jProjectTranslator extends javax.swing.JFrame implements Observer {
         listReaders.add(new jProjectReader_ARDOUR());
         listReaders.add(new jProjectReader_AES31());
         listWriters.add(new jProjectWriter_AES31());
-//        listWriters.add(new jProjectWriter_ARDOUR());
+        listWriters.add(new jProjectWriter_ARDOUR());
         listWriters.add(new jProjectWriter_EDL1());
         
         
